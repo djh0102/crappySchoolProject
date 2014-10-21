@@ -332,7 +332,7 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 		if(arg0.getSource() == progressSlide)
 		{
 			//System.out.println("mouse pressed on progress slider, moving slider to cursor");
-			seeking = true;  // block the bpinterface from setting the slider value
+			seeking = true;  // block the mediaplayer from setting the slider value
 			BasicSliderUI ui = (BasicSliderUI)progressSlide.getUI();
 			int value = ui.valueForXPosition( arg0.getX() );
 			progressSlide.setValue(value);
