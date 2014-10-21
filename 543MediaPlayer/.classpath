@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.6"/>
+	<classpathentry kind="lib" path="/Users/daniel/Desktop/543 Stuff/543 project/Basic Player/needed_JARs/basicplayer3.0.jar"/>
+	<classpathentry kind="lib" path="/Users/daniel/Desktop/543 Stuff/543 project/Basic Player/needed_JARs/commons-logging-api.jar"/>
+	<classpathentry kind="lib" path="/Users/daniel/Desktop/543 Stuff/543 project/Basic Player/needed_JARs/jflac-1.2.jar"/>
+	<classpathentry kind="lib" path="/Users/daniel/Desktop/543 Stuff/543 project/Basic Player/needed_JARs/jl1.0.jar"/>
+	<classpathentry kind="lib" path="/Users/daniel/Desktop/543 Stuff/543 project/Basic Player/needed_JARs/jmactritonusspi1.74.jar"/>
+	<classpathentry kind="lib" path="/Users/daniel/Desktop/543 Stuff/543 project/Basic Player/needed_JARs/jogg-0.0.7.jar"/>
+	<classpathentry kind="lib" path="/Users/daniel/Desktop/543 Stuff/543 project/Basic Player/needed_JARs/jorbis-0.0.15.jar"/>
+	<classpathentry kind="lib" path="/Users/daniel/Desktop/543 Stuff/543 project/Basic Player/needed_JARs/jspeex0.9.7.jar"/>
+	<classpathentry kind="lib" path="/Users/daniel/Desktop/543 Stuff/543 project/Basic Player/needed_JARs/mp3spi1.9.5.jar"/>
+	<classpathentry kind="lib" path="/Users/daniel/Desktop/543 Stuff/543 project/Basic Player/needed_JARs/tritonus_share.jar"/>
+	<classpathentry kind="lib" path="/Users/daniel/Desktop/543 Stuff/543 project/Basic Player/needed_JARs/vorbisspi1.0.2.jar"/>
+	<classpathentry kind="lib" path="/Users/daniel/Desktop/543 Stuff/543 project/DataBase Stuff/needed jars/derby.jar"/>
+	<classpathentry kind="lib" path="/Users/daniel/Desktop/543 Stuff/543 project/DataBase Stuff/needed jars/derbyclient.jar"/>
+	<classpathentry kind="lib" path="/Users/daniel/Desktop/543 Stuff/543 project/DataBase Stuff/needed jars/derbyLocale_cs.jar"/>
+	<classpathentry kind="lib" path="/Users/daniel/Desktop/543 Stuff/543 project/DataBase Stuff/needed jars/derbyLocale_ja_JP.jar"/>
+	<classpathentry kind="lib" path="/Users/daniel/Desktop/543 Stuff/543 project/DataBase Stuff/needed jars/derbyLocale_ko_KR.jar"/>
+	<classpathentry kind="lib" path="/Users/daniel/Desktop/543 Stuff/543 project/DataBase Stuff/needed jars/derbyLocale_pl.jar"/>
+	<classpathentry kind="lib" path="/Users/daniel/Desktop/543 Stuff/543 project/DataBase Stuff/needed jars/derbyLocale_pt_BR.jar"/>
+	<classpathentry kind="lib" path="/Users/daniel/Desktop/543 Stuff/543 project/DataBase Stuff/needed jars/derbyLocale_ru.jar"/>
+	<classpathentry kind="lib" path="/Users/daniel/Desktop/543 Stuff/543 project/DataBase Stuff/needed jars/derbyLocale_zh_CN.jar"/>
+	<classpathentry kind="lib" path="/Users/daniel/Desktop/543 Stuff/543 project/DataBase Stuff/needed jars/derbyLocale_de_DE.jar"/>
+	<classpathentry kind="lib" path="/Users/daniel/Desktop/543 Stuff/543 project/DataBase Stuff/needed jars/derbyLocale_es.jar"/>
+	<classpathentry kind="lib" path="/Users/daniel/Desktop/543 Stuff/543 project/DataBase Stuff/needed jars/derbyLocale_fr.jar"/>
+	<classpathentry kind="lib" path="/Users/daniel/Desktop/543 Stuff/543 project/DataBase Stuff/needed jars/derbyLocale_hu.jar"/>
+	<classpathentry kind="lib" path="/Users/daniel/Desktop/543 Stuff/543 project/DataBase Stuff/needed jars/derbyLocale_it.jar"/>
+	<classpathentry kind="lib" path="/Users/daniel/Desktop/543 Stuff/543 project/DataBase Stuff/needed jars/derbyLocale_zh_TW.jar"/>
+	<classpathentry kind="lib" path="/Users/daniel/Desktop/543 Stuff/543 project/DataBase Stuff/needed jars/derbynet.jar"/>
+	<classpathentry kind="lib" path="/Users/daniel/Desktop/543 Stuff/543 project/DataBase Stuff/needed jars/derbyoptionaltools.jar"/>
+	<classpathentry kind="lib" path="/Users/daniel/Desktop/543 Stuff/543 project/DataBase Stuff/needed jars/derbyrun.jar"/>
+	<classpathentry kind="lib" path="/Users/daniel/Desktop/543 Stuff/543 project/DataBase Stuff/needed jars/derbytools.jar"/>
+	<classpathentry kind="lib" path="/Users/daniel/Desktop/543 Stuff/543 project/TagReaderStuff/mp3agic-0.8.1.jar"/>
+	<classpathentry kind="lib" path="/Users/daniel/Downloads/ImageUtil/lib/java-image-scaling-0.8.5.jar"/>
+	<classpathentry kind="lib" path="/Users/daniel/Downloads/ImageUtil/lib/Filters.jar"/>
+	<classpathentry kind="lib" path="/Users/daniel/Downloads/ImageUtil/dist/ImageUtil.jar"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>
