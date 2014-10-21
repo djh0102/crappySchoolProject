@@ -75,8 +75,8 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 			
 			while(true)
 			{
-				//System.out.println("in loopwatcher, progressslide value = " + progressSlide.getValue() + ", loop =="
-				//		+ " " + loop + ", loop_endbytes == " + loop_endbytes);
+				System.out.println("in loopwatcher, progressslide value = " + progressSlide.getValue() + ", loop =="
+						+ " " + loop + ", loop_endbytes == " + loop_endbytes);
 				
 				if((loop== true) &&(currentbytes >= loop_endbytes))
 				{
