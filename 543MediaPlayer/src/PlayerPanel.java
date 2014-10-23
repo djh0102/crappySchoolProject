@@ -105,7 +105,7 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 			//System.out.println("i'm here");
 			while(true)
 			{
-				//System.out.print("i'm here");
+				/* i don't know why, but it won't work without this delay ?!?! */
 				try {
 					Thread.sleep(1);
 				} catch (InterruptedException e) {
@@ -423,7 +423,8 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 			loop_end.setSelected(false);
 			repeat.setSelected(false);
 			/* clear the progress time */
-			progressTime.setText("0:00/0:00");
+			progressTime.setText(convertMicroSeconds(duration_micro));
+			duration_label.setText("0:00");
 			
 		}
 		else if(arg0.getSource() == loop_start)
