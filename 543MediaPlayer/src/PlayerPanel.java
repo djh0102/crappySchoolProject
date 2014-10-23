@@ -27,12 +27,14 @@ import javax.swing.border.LineBorder;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import javax.swing.plaf.basic.BasicSliderUI;
-
+/* 10/22: did some refractoring, still a little more needed. */
 public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 {
 	/* gui stuff */
 	JLabel nowPlayingArt;
 	JLabel progressTime;
+	String duration = "0:00";
+	JLabel duration_label;
 	JButton play;
 	JButton stop;
 	JButton skip_prev;
@@ -51,7 +53,7 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
     MediaPlayer player;
 	
     /* player stuff */
-    int currentIndex = 0,maxIndex,columncount;
+  
     /* state variables */
     boolean stopped = true;
     boolean playing = false;
@@ -60,9 +62,10 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
     /* loop stuff */
 	String loop_start_song; 
 	String loop_end_song;  /* these two must be equal in order to loop */
-	int loop_startbytes; /* byte location to start loop */
+	public int loop_startbytes; /* byte location to start loop */
 	int loop_endbytes;   /* byte location to end loop */
 	int currentbytes;
+	int duration_micro;  /* need this to show "time left in song"*/
 	byte[] largeArt;     /* the artwork of current song (before resize) */
 	
 	TablePanel tablepanel;
@@ -70,17 +73,19 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 	class LoopWatcher extends Thread
 	{
 		boolean seek = false;
+		
 		public void run()
 		{
-			
+			System.out.println(loop_startbytes);
+			loop_startbytes = loop_startbytes - (328 * player.getBitRate());
+			System.out.println(loop_startbytes);
 			while(true)
 			{
-				System.out.println("in loopwatcher, progressslide value = " + progressSlide.getValue() + ", loop =="
-						+ " " + loop + ", loop_endbytes == " + loop_endbytes);
+				//System.out.println("in loopwatcher, progressslide value = " + progressSlide.getValue() + ", loop =="
+				//		+ " " + loop + ", loop_endbytes == " + loop_endbytes);
 				
-				if((loop== true) &&(currentbytes >= loop_endbytes))
+				if((loop== true) && (currentbytes >= loop_endbytes))
 				{
-					//bpi.seek(loop_startbytes);
 					seek = true;
 					System.out.println("made it here!!");
 				}
@@ -88,20 +93,43 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 				if(seek)
 				{
 					player.seek(loop_startbytes);
-					seek=false;
+					seek = false;
 				}
 			}
 		}
 	}
+	class MediaDuration extends Thread
+	{
+		public void run()
+		{
+			//System.out.println("i'm here");
+			while(true)
+			{
+				//System.out.print("i'm here");
+				try {
+					Thread.sleep(1);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				//while(player.isPlaying() == false);
+				if(player.isPlaying())
+				{
+					//System.out.print("i'm here");
+				    duration_label.setText(convertMicroSeconds((progressSlide.getValue())/player.getBitRate()*8000));
+				    progressTime.setText(convertMicroSeconds(duration_micro - (progressSlide.getValue())/player.getBitRate()*8000));
+				}
+			}
+		}
+			
+	}
 	LoopWatcher lp;
+	
     public PlayerPanel()
 	{
 		player = MediaPlayer.getMediaPlayerObj(this);
-		//LoopWatcher lp = new LoopWatcher();
-		//lp.start();
 		this.setSize(800,200);
 		this.setLayout(null); /* i'll put things exactly where i want them */
-		this.setIgnoreRepaint(true);
 		
 		/* create the buttons put them in place */
 		skip_prev = new JButton();
@@ -160,15 +188,18 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 		progressSlide.setMaximum(100);
 		progressSlide.setValue(50);
 		progressSlide.setOrientation(JProgressBar.HORIZONTAL);
-		progressSlide.setLocation(290, 150);
+		progressSlide.setLocation(312, 150);
 		progressSlide.setSize(300, 30);
 		progressSlide.setValue(0);
 		progressSlide.addMouseListener(this);
 		
-		progressTime = new JLabel("0:00/0:00");
+		progressTime = new JLabel("0:00");
 		progressTime.setSize(90,50);
 		progressTime.setLocation(progressSlide.getX()+300-10,progressSlide.getY()-12);
 		
+		duration_label = new JLabel(duration);
+		duration_label.setSize(90,50);
+		duration_label.setLocation(progressSlide.getX()-25,progressSlide.getY()-12);
 		/* the label the hold the artwork from the mp3 */
 		nowPlayingArt = new JLabel();
 		nowPlayingArt.setSize(120,120);
@@ -205,68 +236,60 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 		this.add(volumeSlide);
 		this.add(progressSlide);
 		this.add(progressTime);
+		this.add(duration_label);
 		this.add(nowPlayingArt);
 		this.add(jsp1);
 		this.add(repeat);
 		this.add(loop_start);
 		this.add(loop_end);
-		
+		this.setIgnoreRepaint(true);
 		this.setVisible(true);
+		MediaDuration md = new MediaDuration();
+		md.start();
 	}
     /* control functions */
     public void setTablePTR(TablePanel tpa)
     {
-    	/* connect to TablePanel for song  */
+    	/* connect to TablePanel for song list  */
     	tablepanel = tpa;
-    	tpa.setPlayerUI(this);
-    	maxIndex = tablepanel.getTableObj().getRowCount();
-    	columncount = tablepanel.getTableObj().getColumnCount()-1;
     }
-    public void updateTableCount()
-    {
-    	maxIndex = tablepanel.getTableObj().getRowCount();
-    }
+    
     public double getCurrentVolume()
     {
     	return (double)volumeSlide.getValue()/100;
     }
-    public int getCurrentIndex()
-    {
-    	return currentIndex;
-    }
-    public void setCurrentIndex(int cur)
-    {
-    	currentIndex = cur;
-    }
+   
     public void setProgress(int x)
     {
     	progressSlide.setValue(x);
     	currentbytes = x;
-    	/*if(loop && (currentbytes >= loop_endbytes))
-		{
-			bpi.seek(loop_startbytes);
-		}*/
+    	
     }
     public void setProgressMax(int x)
     {
     	progressSlide.setMaximum(x);
     }
+    
     public void setPlayerText(String str)
     {
     	nowPlaying.setText(str);
     }
+    
     public boolean isSeeking()
     {
     	return seeking;
     }
+    
     public boolean getRepeat()
     {
     	return repeat.isSelected();
     }
+    
     public void setPlayButtonIcon(URL url)
     {
     	play.setIcon(new ImageIcon(url));
     }
+    
     public void setCurrentArt(byte[] img) throws IOException
     {
     	if((img != null) && img.length > 10)
@@ -285,63 +308,61 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
     		nowPlayingArt.setIcon(tmp);
     	}
     }
+    
     public void playFirstSong()
     {
-    	tablepanel.getTableObj().setRowSelectionInterval(0, 0);
-    	player.play((String)tablepanel.getTableObj().getValueAt(0, columncount));
+    	player.play(tablepanel.getFirstSong());
     }
+    
     public void playNextSong() 
     {
     	player.stop();
-	    currentIndex = (currentIndex+1) % maxIndex;
-	    tablepanel.getTableObj().setRowSelectionInterval(currentIndex, currentIndex);
-    	player.play((String)tablepanel.getTableObj().getValueAt(currentIndex, columncount));
-    	tablepanel.scrollToSelected();
+    	player.play(tablepanel.getNextSong());
     }
+    
     public void playPreviousSong() 
     {
     	player.stop();
-    	currentIndex = (currentIndex == 0)?maxIndex-1:currentIndex-1;
-    	tablepanel.getTableObj().setRowSelectionInterval(currentIndex, currentIndex);
-    	player.play((String)tablepanel.getTableObj().getValueAt(currentIndex, columncount));
-    	tablepanel.scrollToSelected();
+    	player.play(tablepanel.getPreviousSong());
     }
+    
     public void setCurrentTime(String str)
     {
     	progressTime.setText(str);
     }
+    
 	public void mouseClicked(MouseEvent arg0) 
 	{
-		// TODO Auto-generated method stub
-		
-		
+		// TODO Auto-generated method stub	
 	}
+	
 	@Override
 	public void mouseEntered(MouseEvent arg0) {
-		// TODO Auto-generated method stub
-		
+		// TODO Auto-generated method stub	
 	}
+	
 	@Override
 	public void mouseExited(MouseEvent arg0) {
 		// TODO Auto-generated method stub
 		
 	}
+	
 	@Override
 	public void mousePressed(MouseEvent arg0) {
 		// TODO Auto-generated method stub
 		if(arg0.getSource() == progressSlide)
 		{
-			//System.out.println("mouse pressed on progress slider, moving slider to cursor");
-			seeking = true;  // block the mediaplayer from setting the slider value
+			seeking = true;  // block the bpinterface from setting the slider value
 			BasicSliderUI ui = (BasicSliderUI)progressSlide.getUI();
 			int value = ui.valueForXPosition( arg0.getX() );
 			progressSlide.setValue(value);
 		}
+		
 		if (arg0.isMetaDown())
 		{
-			//System.out.println("right click detected on currentLabel");
 			popup.show(arg0.getComponent(),arg0.getX(),arg0.getY());
 		}
+		
 		if(arg0.getSource() == popShowLarge)
 		{
 			if(largeArt != null)
@@ -363,6 +384,7 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 		
 		
 	}
+	
 	@Override
 	public void mouseReleased(MouseEvent arg0) {
 		// TODO Auto-generated method stub
@@ -370,9 +392,10 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 		{
 			int x = progressSlide.getValue();
 			player.seek(x);
-			seeking = false; // allow the bpinterface to resume setting progressSlide value (position)
+			seeking = false; // allow the media player to resume setting progressSlide value (position)
 		}
 	}
+	
 	@Override
 	public void actionPerformed(ActionEvent arg0) {
 		// TODO Auto-generated method stub
@@ -393,7 +416,7 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 		else if(arg0.getSource() == stop)
 		{
 			player.stop();
-			/* if loopwatcher thread running, kill it
+			/* if loopwatcher thread running, kill it */
 			if(lp != null)lp.stop();
 			/* clear the R, A and B buttons */
 			loop_start.setSelected(false);
@@ -405,28 +428,40 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 		}
 		else if(arg0.getSource() == loop_start)
 		{
-			//System.out.println("button A = " + loop_start.isSelected());
+			/* user unselected the button */
 			if(!loop_start.isSelected())clearLoop();
+			/* user selected the button */
 			else
 				setLoopStart();
 		}
+		
 		else if(arg0.getSource() == loop_end)
 		{
-			//System.out.println("button A = " + loop_start.isSelected());
-			if(!loop_end.isSelected())clearLoop();
+			if(!loop_end.isSelected())
+			{
+				/* user unselected the button */
+				clearLoop();
+				loop_start.setSelected(false);
+			}
+			/* user selected the button */
 			else
 				setLoopEnd();
 		}
 		
 	}
+	
+	public void setDuration(int dur)
+	{
+		duration_micro = dur;
+	}
 	public void setLoopStart()
 	{
-		//System.out.println("bpi.getBitRate()*5 == "+bpi.getBitRate()*5);
-		loop_startbytes = currentbytes - (player.getBitRate());
+		loop_startbytes = progressSlide.getValue();
 		loop_start_song = player.getCurrentSong();
 		lp = new LoopWatcher();
 		lp.start();
 	}
+	
 	public void setLoopEnd()
 	{
 		loop_endbytes = currentbytes;
@@ -436,6 +471,7 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 			loop = true;
 		}
 	}
+	
 	public void clearLoop()
 	{
 		loop_startbytes = 0;
@@ -446,15 +482,30 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 		System.out.println("killing loopWatcher");
 		if(lp != null)lp.stop();
 	}
+	
 	public Dimension getSize()
 	{
 		return new Dimension(this.getWidth(),this.getHeight());
 	}
+	
 	public void paintComponent(Graphics g) 
     {
 		ImageIcon ic = new ImageIcon(getClass().getResource("background2.png"));
       g.drawImage(ic.getImage(), 0, 0, getWidth(), getHeight(), this);
     }
+	
+	public static String convertMicroSeconds(long lg)
+	{
+		//if (lg==0)return "err";
+		long org,min, seconds;
+		String seconds_str = "";
+		min = (int)(lg/60000000);
+		lg = lg - (min * 60000000);
+		seconds = (lg/1000000);
+		if(seconds < 10)seconds_str = "0"+seconds;
+		else seconds_str = seconds+""; 
+		return(min +":" + seconds_str);
+	}
 	/*public static void main(String[] args)
 	{
 		PlayerPanel pp = new PlayerPanel();

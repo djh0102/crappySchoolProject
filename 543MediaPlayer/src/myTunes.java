@@ -16,17 +16,14 @@ class myTunes extends JFrame implements MouseListener
 	TablePanel table;
 	private JMenuBar menuBar;
     private JMenu menu;
-    //private JPopupMenu popup;
-    //private JMenuItem popOpen;
     private JMenuItem static_Open;
-    //private JMenuItem popDelete;
     private JMenuItem static_Delete;
     private JMenuItem addSong;
     private JMenuItem exit;
 	public myTunes() 
 	{
 		this.setSize(900,800);
-		//this.setResizable(false);
+		this.setResizable(false);
 		menuBar = new JMenuBar();
         menu = new JMenu("File");
         static_Open = new JMenuItem("Open");
@@ -52,7 +49,6 @@ class myTunes extends JFrame implements MouseListener
 		table = new TablePanel();
 		player.setTablePTR(table);
 		table.hookUP(MediaPlayer.getMediaPlayerObj());
-		MediaPlayer.getMediaPlayerObj().setTableControl(table);
 		
 		this.add(player, BorderLayout.CENTER);
 		this.add(table,BorderLayout.SOUTH);

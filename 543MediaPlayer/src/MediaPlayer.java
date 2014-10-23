@@ -18,17 +18,16 @@ public class MediaPlayer implements BasicPlayerListener
 	BasicController control;
 	BasicPlayer player;
 	String currentSong;
-	TablePanel tableControl;
 	static MediaPlayer mp;
 	boolean playing = false, stopped = true, loop = false;
-	int currentBytes, tagsize = 0, loop_start,loop_end,bitrate;
+	int currentBytes,bitrate;
+	int tagsize;
 	String duration;
 	
 	private MediaPlayer()
 	{
 		player = new BasicPlayer();
 		control = (BasicController) player;
-		//player.setSleepTime(1);
 		player.addBasicPlayerListener(this);
 	}
 	
@@ -83,10 +82,7 @@ public class MediaPlayer implements BasicPlayerListener
     {
     	playerUI = ui;
     }
-	public void setTableControl(TablePanel tp)
-	{
-		tableControl = tp;
-	}
+	
 	public void play(String filename) 
 	{
 		
@@ -118,6 +114,10 @@ public class MediaPlayer implements BasicPlayerListener
 		{
 			e.printStackTrace();
 		} 
+	}
+	public long getTagSize()
+	{
+		return tagsize;
 	}
 	public boolean isPlaying()
 	{
@@ -203,7 +203,8 @@ public class MediaPlayer implements BasicPlayerListener
 			mp3file = new Mp3File(currentSong);
 			
 			bitrate = mp3file.getBitrate();
-			tagsize = mp3file.getStartOffset();
+			//tagsize = mp3file.getStartOffset()+1;
+			
 			if(mp3file.hasId3v2Tag() && playerUI != null) 
 			{
 				playerUI.setCurrentArt(mp3file.getId3v2Tag().getAlbumImage());
@@ -219,29 +220,31 @@ public class MediaPlayer implements BasicPlayerListener
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
 		}
+		tagsize = (int) (mp3file.getLength() - (mp3file.getLengthInMilliseconds()/8*bitrate));
+		//System.out.println("myTag = "+ (mp3file.getLength() - (mp3file.getLengthInMilliseconds()/8)*bitrate));
+		//System.out.println(mp3file.getStartOffset());
 		String songInfo = "Now Playing:\n";
 		songInfo = songInfo + ("Title: " + properties.get("title"));
 		songInfo += ("\nAuthor: " + properties.get("author"));
 		int lg = (Integer) properties.get("mp3.length.bytes");
 		long dur = (Long) properties.get("duration");
-		playerUI.setProgressMax(lg);
+		playerUI.setProgressMax(lg-tagsize);
 		duration = convertMicroSeconds(dur);
 		songInfo += ("\nDuration: " + duration);
-		songInfo += ("\nBitrate: " + bitrate);
-		songInfo += ("\nsize: "+ (mp3file.getLength()-tagsize));
-		songInfo += ("\nmydur: " + convertMicroSeconds((mp3file.getLength()-tagsize)/bitrate*8000));
+		songInfo += ("\nmydur: " + convertMilliSeconds(((mp3file.getLength()-tagsize)/bitrate*8)));
+		songInfo += ("\nmydur2: " + ((mp3file.getLength()-tagsize)/bitrate*8));
 		playerUI.setPlayerText(songInfo);
-		
+		playerUI.setCurrentTime(duration);
+		playerUI.setDuration((int) dur);
 	}
 
 	@Override
 	// this is called a
 	public void progress(int bytesread, long arg1, byte[] arg2, Map arg3) 
 	{
-		if(!playerUI.isSeeking())playerUI.setProgress(bytesread);
+		if(!playerUI.isSeeking())playerUI.setProgress(bytesread-tagsize);
 		
-		playerUI.setCurrentTime(convertMicroSeconds((bytesread-tagsize)/bitrate*8000) + "/" + duration);
-		
+		//playerUI.setCurrentTime(convertMicroSeconds((bytesread-tagsize)/bitrate*8000) + "/" + duration);
 	}
 
 	@Override
@@ -256,8 +259,6 @@ public class MediaPlayer implements BasicPlayerListener
 		// TODO Auto-generated method stub
 		if(arg0.getCode() == BasicPlayerEvent.EOM )
 		{
-			// tell the UI to play next song in playlist
-			// playerUI.playNextSong();
 			if(playerUI.getRepeat() == true)
 				play(currentSong);
 			else
@@ -269,12 +270,24 @@ public class MediaPlayer implements BasicPlayerListener
 	public static String convertMicroSeconds(long lg)
 	{
 		//if (lg==0)return "err";
-		//System.out.println("Here is lg:: " + lg);
-		int min, seconds;
+		long org,min, seconds;
 		String seconds_str = "";
 		min = (int)(lg/60000000);
 		lg = lg - (min * 60000000);
-		seconds = (int)(lg/1000000);
+		seconds = (lg/1000000);
+		if(seconds < 10)seconds_str = "0"+seconds;
+		else seconds_str = seconds+""; 
+		return(min +":" + seconds_str);
+	}
+	public static String convertMilliSeconds(long lg)
+	{
+		//if (lg==0)return "err";
+		//System.out.println("Here is lg:: " + lg);
+		long org,min, seconds;
+		String seconds_str = "";
+		min = (int)(lg/60000);
+		lg = lg - (min * 60000);
+		seconds = (lg/1000);
 		if(seconds < 10)seconds_str = "0"+seconds;
 		else seconds_str = seconds+""; 
 		return(min +":" + seconds_str);

@@ -32,7 +32,6 @@ public class TablePanel extends JPanel implements MouseListener
 	MediaPlayer mplayer;
 	String currentSong;
 	String currentTableView;
-	PlayerPanel playerUI;
 	JPopupMenu popup;
 	JMenuItem popOpen;
 	JMenuItem popDelete;
@@ -111,13 +110,16 @@ public class TablePanel extends JPanel implements MouseListener
 	{
 		return table;
 	}
+	
 	public void scrollToSelected()
 	{
 		Rectangle cellRect = table.getCellRect(table.getSelectedRow(), 0, false);
-		if (cellRect != null) {
-		table.scrollRectToVisible(cellRect);
+		if (cellRect != null) 
+		{
+			table.scrollRectToVisible(cellRect);
 		}
 	}
+	
 	public boolean addToList(String fileName)
 	{
 		boolean success = false;
@@ -126,10 +128,10 @@ public class TablePanel extends JPanel implements MouseListener
     		success = database.insertEntry("library", fileName);
     		currentIndex = database.getIndexOf(fileName);
     		maxIndex = table.getRowCount();
-    		playerUI.updateTableCount();
     	}
     	return success;
 	}
+	
 	public void deleteRows(int[] rows)
     {
     	for(int i = rows.length; i > 0; i--)
@@ -137,15 +139,10 @@ public class TablePanel extends JPanel implements MouseListener
     		String fileName = (String)(model.getValueAt(rows[i-1],model.getColumnCount()-1));
     		System.out.println("deleting: " + fileName);
     		database.deleteEntry("library", fileName);
-    		maxIndex--;
-    		
     	}
-    	playerUI.updateTableCount();
+    	
+    	maxIndex = table.getRowCount();
     }
-	public void setPlayerUI(PlayerPanel ui)
-	{
-		playerUI = ui;
-	}
 	
 	public int getIndexOf(String str)
     {
@@ -159,18 +156,34 @@ public class TablePanel extends JPanel implements MouseListener
     	return -1;
     }
 	
-	/*public String getNextSong()
+	public String getFirstSong()
+	{
+		table.setRowSelectionInterval(0, 0);
+		return (String)table.getValueAt(0, table.getColumnCount()-1);
+	}
+	
+	public String getNextSong()
 	{
 		currentIndex = (currentIndex+1)%table.getRowCount();
 		table.setRowSelectionInterval(currentIndex, currentIndex);
+		scrollToSelected();
 		return (String)table.getValueAt(currentIndex, 5);
 		
-	}*/
+	}
+	
+	public String getPreviousSong()
+	{
+	    currentIndex = (currentIndex == 0) ? maxIndex-1:currentIndex-1;
+		table.setRowSelectionInterval(currentIndex, currentIndex);
+		scrollToSelected();
+		return (String)table.getValueAt(currentIndex, 5);
+	}
 	
 	public void hookUP(MediaPlayer mm)
 	{
 		mplayer = mm;
 	}
+	
 	@Override
 	public void mouseClicked(MouseEvent arg0) {
 		// TODO Auto-generated method stub
@@ -184,7 +197,6 @@ public class TablePanel extends JPanel implements MouseListener
 				currentIndex = table.getSelectedRow();
 				mplayer.play((String)table.getValueAt(currentIndex, 5));
 				currentSong=(String)table.getValueAt(currentIndex, 5);
-				playerUI.setCurrentIndex(currentIndex);
 			}
 		}
 		
@@ -232,8 +244,6 @@ public class TablePanel extends JPanel implements MouseListener
 		    		table.setRowSelectionInterval(currentIndex, currentIndex);
 					mplayer.play(chosenFile);
 					currentSong=chosenFile;
-					playerUI.setCurrentIndex(currentIndex);
-					playerUI.updateTableCount();
 		    	}
 		    }
 		}
@@ -245,6 +255,8 @@ public class TablePanel extends JPanel implements MouseListener
 		// TODO Auto-generated method stub
 		
 	}
+	
+	@Override
 	public void paintComponent(Graphics g) 
     {
 		ImageIcon ic = new ImageIcon(getClass().getResource("background.png"));
