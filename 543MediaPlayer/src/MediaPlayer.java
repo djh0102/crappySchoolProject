@@ -1,9 +1,13 @@
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
+
+import javax.swing.JOptionPane;
+
 import com.mpatric.mp3agic.InvalidDataException;
 import com.mpatric.mp3agic.Mp3File;
 import com.mpatric.mp3agic.UnsupportedTagException;
+
 import javazoom.jlgui.basicplayer.BasicController;
 import javazoom.jlgui.basicplayer.BasicPlayer;
 import javazoom.jlgui.basicplayer.BasicPlayerEvent;
@@ -14,30 +18,34 @@ import javazoom.jlgui.basicplayer.BasicPlayerListener;
 public class MediaPlayer implements BasicPlayerListener
 {
 
-	private static PlayerPanel playerUI;
+	private PlayerPanel playerUI;
 	BasicController control;
 	BasicPlayer player;
 	String currentSong;
-	static MediaPlayer mp;
-	boolean playing = false, stopped = true, loop = false;
+	//static MediaPlayer mp;
+	static boolean playing = false;
+    static boolean stopped = true; 
 	int currentBytes,bitrate;
 	int tagsize;
 	String duration;
 	
-	private MediaPlayer()
+	public MediaPlayer()
 	{
+		System.out.println("new basic player!");
+		player = new BasicPlayer();
+		control = (BasicController) player;
+		//player.
+		player.addBasicPlayerListener(this);
+	}
+	public MediaPlayer(PlayerPanel pp)
+	{
+		System.out.println("new basic player(PlayerUI)!");
 		player = new BasicPlayer();
 		control = (BasicController) player;
 		player.addBasicPlayerListener(this);
+		playerUI = pp;
 	}
 	
-	public static MediaPlayer getMediaPlayerObj(PlayerPanel ui)
-	{
-		setPlayerUI(ui);
-		if(mp == null)mp = new MediaPlayer();
-		
-		return mp;
-	}
 	public void play_pause_Event()
 	{
 		if(isStopped())
@@ -72,28 +80,27 @@ public class MediaPlayer implements BasicPlayerListener
 			}
 		}
 	}
-	public static MediaPlayer getMediaPlayerObj()
-	{
-		if(mp == null)mp = new MediaPlayer();
-		return mp;
-	}
 	
     private static void setPlayerUI(PlayerPanel ui)
     {
-    	playerUI = ui;
+    	//playerUI = ui;
     }
 	
 	public void play(String filename) 
 	{
 		
 		if(filename == null)return;
+		//if(player.getStatus() == player.PLAYING)JOptionPane.showMessageDialog(null, "I'm busy");
 		currentSong = filename;
-		
+		playerUI.setCurrentSong(filename);
 		try
 		{			
+			
 			control.open(new File(filename));
+			
 			// Start playback in a thread.
 			control.play();
+			
 			playerUI.setPlayButtonIcon(getClass().getResource("pause.png"));
 			playing = true;
 			stopped = false;
@@ -127,11 +134,14 @@ public class MediaPlayer implements BasicPlayerListener
 	{
 		return stopped;
 	}
+	public void pauseOthers()
+	{
+		playerUI.reservePlayer();
+	}
 	public String getCurrentSong()
 	{
 		return currentSong;
 	}
-	
 	public void pause()
 	{
 		try {
@@ -143,19 +153,7 @@ public class MediaPlayer implements BasicPlayerListener
 		}
 		playing = false;
 	}
-	public void resume()
-	{
-		try {
-			control.setGain(playerUI.getCurrentVolume());
-			control.resume();
-			playerUI.setPlayButtonIcon(getClass().getResource("pause.png"));
-		} catch (BasicPlayerException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		
-		playing = true;
-	}
+
 	public void stop() 
 	{
 		try {
@@ -210,6 +208,8 @@ public class MediaPlayer implements BasicPlayerListener
 				playerUI.setCurrentArt(mp3file.getId3v2Tag().getAlbumImage());
 				
 			}
+			//else
+				//playerUI.setCurrentArt(null);
 		} catch (UnsupportedTagException e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
@@ -226,37 +226,38 @@ public class MediaPlayer implements BasicPlayerListener
 		String songInfo = "Now Playing:\n";
 		songInfo = songInfo + ("Title: " + properties.get("title"));
 		songInfo += ("\nAuthor: " + properties.get("author"));
-		int lg = (Integer) properties.get("mp3.length.bytes");
+		//int lg = (Integer) properties.get("mp3.length.bytes");
+		int lg = (int) (mp3file.getLength() - tagsize);
 		long dur = (Long) properties.get("duration");
 		playerUI.setProgressMax(lg-tagsize);
 		duration = convertMicroSeconds(dur);
-		songInfo += ("\nDuration: " + duration);
-		songInfo += ("\nmydur: " + convertMilliSeconds(((mp3file.getLength()-tagsize)/bitrate*8)));
-		songInfo += ("\nmydur2: " + ((mp3file.getLength()-tagsize)/bitrate*8));
+		//songInfo += ("\nDuration: " + duration);
+		songInfo += ("\nDuration: " + convertMilliSeconds(((mp3file.getLength()-tagsize)/bitrate*8)));
+		//songInfo += ("\nmydur2: " + ((mp3file.getLength()-tagsize)/bitrate*8));
 		playerUI.setPlayerText(songInfo);
 		playerUI.setCurrentTime(duration);
 		playerUI.setDuration((int) dur);
 	}
 
 	@Override
-	// this is called a
+	// this is called about 2x -- 3x a second (based on OBSERVED BEHAVIOR) 
+	// to update song progress. 
+	// NOTE: this is called by the same thread (created when we call play(String)) 
+	// that is responsible for loading the buffer to play the song. If this function 
+	// takes to much time, the buffer will "run dry" before this thread can fill it 
+	// and cause a disruption in the playing of the song (the clicking sound). So 
+	// it is important for this function to do as little as possible!!!!!!!
 	public void progress(int bytesread, long arg1, byte[] arg2, Map arg3) 
 	{
 		if(!playerUI.isSeeking())playerUI.setProgress(bytesread-tagsize);
-		
-		//playerUI.setCurrentTime(convertMicroSeconds((bytesread-tagsize)/bitrate*8000) + "/" + duration);
 	}
 
 	@Override
-	public void setController(BasicController arg0) {
-		// TODO Auto-generated method stub
-		
-	}
+	public void setController(BasicController arg0) {}
 
 	@Override
 	public void stateUpdated(BasicPlayerEvent arg0) 
 	{
-		// TODO Auto-generated method stub
 		if(arg0.getCode() == BasicPlayerEvent.EOM )
 		{
 			if(playerUI.getRepeat() == true)
@@ -269,7 +270,6 @@ public class MediaPlayer implements BasicPlayerListener
 	}
 	public static String convertMicroSeconds(long lg)
 	{
-		//if (lg==0)return "err";
 		long org,min, seconds;
 		String seconds_str = "";
 		min = (int)(lg/60000000);
@@ -281,8 +281,6 @@ public class MediaPlayer implements BasicPlayerListener
 	}
 	public static String convertMilliSeconds(long lg)
 	{
-		//if (lg==0)return "err";
-		//System.out.println("Here is lg:: " + lg);
 		long org,min, seconds;
 		String seconds_str = "";
 		min = (int)(lg/60000);

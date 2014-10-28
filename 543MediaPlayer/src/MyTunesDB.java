@@ -5,7 +5,6 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
-
 import javax.swing.table.DefaultTableModel;
 
 import com.mpatric.mp3agic.ID3v1;
@@ -24,10 +23,14 @@ public class MyTunesDB
 	private String artist;
 	private String album;
 	private String genre;
+	private String release;
+	private String comment;
+	private String duration_str;
 	private long duration;
 	private String fileName;
 	DefaultTableModel model;
-	private String[] columnNames = new String [] {"Title", "Artist", "Album", "Genre","Duration","FilePath"};
+	TablePanel tableUI;
+	private String[] columnNames = new String [] {"Title", "Artist", "Album", "Genre","Time","Year","Comment","Duration","FileName"};
 	Object[] rowData;
 	private static MyTunesDB mdb;
     
@@ -40,7 +43,12 @@ public class MyTunesDB
     		Class.forName("org.apache.derby.jdbc.EmbeddedDriver").newInstance();
     		//Get a connection
     		conn = DriverManager.getConnection(dbURL);
-    		createTable("library");
+    		//deleteTable("playlist");
+    		//deleteTable("library");
+    		//createTable("library");
+    		//createPlaylistTable();
+    		//createTablePlaylistNames();
+    		//clearTable("PlaylistNames");
     	}
     	catch (Exception except)
     	{
@@ -67,10 +75,18 @@ public class MyTunesDB
     	// Every table/playlist in our music database will have the same schema
     	try {
 			stmt = conn.createStatement();
-			stmt.execute("CREATE TABLE " + tableName + "(title varchar(64),artist varchar(64),a"
-					+ "lbum varchar(64),genre varchar(64),duration bigint,filePath "
-					+ "varchar(255) )");
-	
+			//stmt.execute("CREATE TABLE " + tableName + "(title varchar(64),artist varchar(64),album varchar(64),genre varchar(64),release varchar(10),comment varchar(255),duration_str varchar(10),duration bigint,filePath varchar(255) )");
+			stmt.execute("CREATE TABLE " + tableName + "(title varchar(64),artist varchar(64),album varchar(64),genre varchar(64),duration_str varchar(10),release varchar(10),comment varchar(255),duration bigint,filePath varchar(255), PRIMARY KEY (filePath) )");
+			System.out.println("CREATE TABLE " + tableName + "(title varchar(64),"
+															+ "artist varchar(64),"
+															+ "album varchar(64),"
+															+ "genre varchar(64),"
+															+ "year varchar(10),"
+															+ "comment varchar(255),"
+															+ "duration_str varchar(10),"
+															+ "duration bigint,"
+															+ "filePath varchar(255) UNIQUE,"
+															+ "PRIMARY KEY(filePath))");
 	        stmt.close();
 		} catch (SQLException e) 
 		{
@@ -90,7 +106,7 @@ public class MyTunesDB
     		stmt=conn.createStatement();
     		stmt.execute("DELETE from "+name);
     		stmt.close();
-    		updateUI(name);
+    		//updateUI(name);
     	}
     	catch(SQLException e)
     	{
@@ -99,6 +115,8 @@ public class MyTunesDB
     	}
     	
     }
+    
+    
     // this function is called to get the index of a song
     // if song is in list, it's index is returned
     // if song not in list, -1 is returned
@@ -146,9 +164,15 @@ public class MyTunesDB
     	{
     		stmt=conn.createStatement();
     		//System.out.println("delete from "+tableName + " where filePath = '" + fileName+"'");
-    		stmt.execute("delete from "+tableName + " where filePath = '" + fileName+"'");
+    		if(!tableName.equals("Library"))stmt.execute("delete from playlist where filePath = '" + fileName+"' AND name ='" + tableName +"'");
+    		else
+    		{
+    			stmt.execute("delete from playlist where filePath = '" + fileName + "'");
+    			stmt.execute("delete from "+tableName + " where filePath = '" + fileName+"'");
+    		}
     		stmt.close();
-    		updateUI(tableName);
+    		
+    		
     	}
     	catch(SQLException e)
     	{
@@ -157,17 +181,72 @@ public class MyTunesDB
     		return;
     	}
     }
+    // this function creates the playlist table
+    public void createPlaylistTable()
+    {
+    	try {
+			stmt = conn.createStatement();
+			stmt.execute("CREATE TABLE Playlist (filePath varchar(255), name varchar(64), Constraint playlist_fk foreign key (filePath) References library (filePath),Constraint playlist_fk1 foreign key (name) References PlaylistNames (name))");
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    }
+    
+    public void createTablePlaylistNames()
+    {
+    	try {
+			stmt = conn.createStatement();
+			stmt.execute("CREATE TABLE PlaylistNames (name varchar(64) PRIMARY KEY)");
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    }
+    public Object[] getPlaylistNames()
+    {
+    	Object[] names = null;
+    	ResultSet results = null;
+    	int rows,i=0;
+    	try {
+			stmt=conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE);
+			results = stmt.executeQuery("select * from PlaylistNames");
+			results.last();
+			rows = results.getRow();
+			results.beforeFirst();
+			names = new Object[rows];
+			
+			while(results.next())
+			{
+				names[i] = results.getString(1);
+				i++;
+			}
+			stmt.close();
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    	
+    	return names;
+    }
     // this function gets the row data of the table
     public Object[][] getDisplaySet(String name)
     {
+    	System.out.println("name.equals(\"Library\") == "+ name.equals("Library"));
     	int rows;
     	int columns;
     	int i = 0;
+    	ResultSet results = null;
     	Object[][] tableset = null;
     	try {
 			//stmt = conn.createStatement();
     		stmt =conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE);
-			ResultSet results = stmt.executeQuery("select * from " + name);
+			if(name.equals("Library"))results = stmt.executeQuery("select * from " + name);
+			else
+			{
+				results = stmt.executeQuery("select * from library inner join Playlist on library.filePath = Playlist.filePath where Playlist.name ='" + name+"'");
+				//results = stmt.executeQuery("select * from library, Playlist where library.filePath = Playlist.filePath AND Playlist.name = "+name);
+			}
 			results.last();         //move pointer to last row
 			rows = results.getRow();//row number of last row
 			results.beforeFirst();        //move pointer back to the first row
@@ -182,8 +261,11 @@ public class MyTunesDB
                 tableset[i][1] = results.getString(2);
                 tableset[i][2] = results.getString(3);
                 tableset[i][3] = results.getString(4);
-                tableset[i][4] = results.getLong(5);
+                tableset[i][4] = results.getString(5);
                 tableset[i][5] = results.getString(6);
+                tableset[i][6] = results.getString(7);
+                tableset[i][7] = results.getLong(8);
+                tableset[i][8] = results.getString(9);
   
                 i++;
 	        }
@@ -193,43 +275,40 @@ public class MyTunesDB
 		}
     	return tableset;
     	
-        
     }
-    // this method prints the table to the console
-    // for debugging purposes only
-    public void printTable(String name)
+    public void addPlaylist(String str)
     {
-    	try
-        {
-            stmt = conn.createStatement();
-            ResultSet results = stmt.executeQuery("select * from " + name);
-            ResultSetMetaData rsmd = results.getMetaData();
-            int numberCols = rsmd.getColumnCount();
-          
-            for (int i=1; i<=numberCols; i++)
-            {
-                //print Column Names
-                System.out.print(rsmd.getColumnLabel(i)+"\t\t");  
-            }
-
-            System.out.println("\n--------------------------------------------------------------------------");
-
-            while(results.next())
-            {
-                String title = results.getString(1).substring(0, 7);
-                String artist = results.getString(2);
-                String album = results.getString(3);
-                String genre = results.getString(4);
-                long duration = results.getLong(5);
-                System.out.println(title + "\t\t" + artist+"\t\t" + album+"\t"+genre+"\t\t"+duration);
-            }
-            results.close();
-            stmt.close();
-        }
-    	catch (SQLException sqlExcept)
-        {
-            sqlExcept.printStackTrace();
-        }
+    	System.out.println(this.getClass().toString()+"addPlaylist("+str+")");
+    	try {
+			stmt = conn.createStatement();
+			stmt.execute("insert into PlaylistNames values('" + str + "')");
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    }
+    public void deletePlaylist(String str)
+    {
+    	System.out.println(this.getClass().toString()+"deletePlaylist("+str+")");
+    	try {
+			stmt = conn.createStatement();
+			stmt.execute("delete from PlaylistNames where name = '" + str + "'");
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    }
+    public void insertIntoPlaylist(String str1,String str2)
+    {
+    	try {
+			stmt = conn.createStatement();
+			insertEntry("library",str2);
+			stmt.execute("insert into playlist values( '" + str1 +"', '" + str2 + "')");
+			stmt.close();
+		} catch (SQLException e) {
+			
+			e.printStackTrace();
+		}
     }
     // inserts a song into list
     // returns true if song is added to list, or if song is already in list
@@ -253,6 +332,9 @@ public class MyTunesDB
 			    artist = makeSQLCompatible(id3v1.getArtist());
 			    album = makeSQLCompatible(id3v1.getAlbum());
 			    genre = makeSQLCompatible(id3v1.getGenreDescription());
+			    release = makeSQLCompatible(id3v1.getYear());
+			    comment = makeSQLCompatible(id3v1.getComment());
+			    
 			}// end if
 			else if(mp3file.hasId3v2Tag())
 			{
@@ -261,10 +343,13 @@ public class MyTunesDB
 			    artist = makeSQLCompatible(id3v2.getArtist());
 			    album = makeSQLCompatible(id3v2.getAlbum());
 			    genre = makeSQLCompatible(id3v2.getGenreDescription());
+			    release = makeSQLCompatible(id3v2.getYear());
+			    comment = makeSQLCompatible(id3v2.getComment());
 				  
 			}//end elseif
 			
 		    duration = mp3file.getLengthInMilliseconds();
+		    duration_str = convertMilliSeconds(duration);
 		    //System.out.println("insert into " + name + " values ('" + title + "','" + artist + "','" + album +"','"+ genre + "'," +duration + ",'" + file + "')");
 		
 		} catch (UnsupportedTagException e1) {
@@ -287,18 +372,19 @@ public class MyTunesDB
     	
     	try {
 			stmt = conn.createStatement();
-			//System.out.println("insert into " + name + " values ('" + title + "','" + artist + "','" + album +"','"+ genre + "'," +duration + ",'" + fileName + "')");
-			stmt.execute("insert into " + name + " values ('" + title + "','" + artist + "','" + album +"','"+ genre + "'," +duration + ",'" + fileName + "')");
+			//System.out.println("insert into " + name + " values ('" + title + "','" + artist + "','" + album +"','"+ genre + "',"+"'"+release+"','"+comment+"','"+duration_str+"'," +duration + ",'" + fileName + "')");
+			//stmt.execute("insert into " + name + " values ('" + title + "','" + artist + "','" + album +"','"+ genre + "'," +duration + ",'" + fileName + "')");
+			stmt.execute("insert into " + name + " values ('" + title + "','" + artist + "','" + album +"','"+ genre + "',"+"'"+duration_str+"','"+release+"','"+comment+"'," +duration + ",'" + fileName + "')");
 			//System.out.println("insert into " + name + " values ('" + title + "','" + artist + "','" + album +"','"+ genre + "'," +duration + ",'" + file + "')");
 			
 	        stmt.close();
-	        updateUI(name);
+	        //updateUI(name);
 		} 
     	catch (SQLException e) 
     	{
 			// TODO Auto-generated catch block
-			e.printStackTrace();
-			return false;
+			//e.printStackTrace();
+			return true;
 		}
     	
         return true;
@@ -351,18 +437,56 @@ public class MyTunesDB
     
     // this is how we link this database obj to the jTable in the gui.
     // any changes we make to the model are immediately reflected in the jTable
-    public void setUI(DefaultTableModel dtm)
-    {
-    	model = dtm;
-    }
     
-    // update the jTable dataset to reflect the current state of the data base
-    private void updateUI(String tableName)
+    public void setUI(TablePanel tp)
     {
-    	System.out.println(this.getClass().toString()+"::updateUI(String): arg0 = " + tableName+"\n\n");
+    	model = (DefaultTableModel) tp.getTableObj().getModel();
+    	//tableUI = tp;
+    }
+    public static String convertMilliSeconds(long lg)
+	{
+		//if (lg==0)return "err";
+		//System.out.println("Here is lg:: " + lg);
+		long org,min, seconds;
+		String seconds_str = "";
+		min = (int)(lg/60000);
+		lg = lg - (min * 60000);
+		seconds = (lg/1000);
+		if(seconds < 10)seconds_str = "0"+seconds;
+		else seconds_str = seconds+""; 
+		return(min +":" + seconds_str);
+	}
+    public static String convertMicroSeconds(long lg)
+	{
+		if (lg==0)return "err";
+		System.out.println("Here in MyTunesDB: lb = " + lg);
+		long min, seconds;
+		String seconds_str = "";
+		min = (int)(lg/60000000);
+		System.out.println("Here in MyTunesDB: min = " + min);
+		lg = lg - (min * 60000000);
+		seconds = (lg/1000000);
+		System.out.println("Here in MyTunesDB: seconds = " + seconds);
+		if(seconds < 10)seconds_str = "0"+seconds;
+		else seconds_str = seconds+""; 
+		return(min +":" + seconds_str);
+	}
+    // update the jTable dataset to reflect the current state of the data base
+    /*public void updateUI(String tableName)
+    {
+    	
     	if (model != null)
     	{
+    		System.out.println(this.getClass().toString()+"::updateUI(String): arg0 = " + tableName+"\n\n");
+    		JTable tm = tableUI.getTableObj();
     		model.setDataVector(getDisplaySet(tableName), columnNames);
+    		tm.removeColumn(tm.getColumnModel().getColumn(tm.getColumnModel().getColumnIndex("FileName")));
+    		tm.removeColumn(tm.getColumnModel().getColumn(tm.getColumnModel().getColumnIndex("Duration")));
+    		tm.getColumnModel().getColumn(tm.getColumnModel().getColumnIndex("Year")).setMaxWidth(45);
+    		tm.getColumnModel().getColumn(tm.getColumnModel().getColumnIndex("Time")).setMaxWidth(40);
+    		tm.getColumnModel().getColumn(tm.getColumnModel().getColumnIndex("Genre")).setMaxWidth(60);
+    		
+    		//tm.moveColumn(column, targetColumn); // actually, just fix the db
     	}
-    }
+    }*/
 }

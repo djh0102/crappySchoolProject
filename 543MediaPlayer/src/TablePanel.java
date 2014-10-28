@@ -3,19 +3,30 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Rectangle;
+import java.awt.datatransfer.Transferable;
+import java.awt.dnd.DnDConstants;
+import java.awt.dnd.DragGestureEvent;
+import java.awt.dnd.DragGestureListener;
+import java.awt.dnd.DragSource;
+import java.awt.dnd.DropTargetDropEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.io.File;
+import java.util.ArrayList;
 
 import javax.swing.BorderFactory;
 import javax.swing.DropMode;
 import javax.swing.ImageIcon;
 import javax.swing.JFileChooser;
 import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
 import javax.swing.JTable;
+import javax.swing.TransferHandler;
+import javax.swing.TransferHandler.TransferSupport;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellRenderer;
@@ -30,23 +41,26 @@ public class TablePanel extends JPanel implements MouseListener
 	int currentIndex,maxIndex;
 	DropHandler MyTransferHandler;
 	MediaPlayer mplayer;
-	String currentSong;
+	//String currentSong;
 	String currentTableView;
 	JPopupMenu popup;
 	JMenuItem popOpen;
 	JMenuItem popDelete;
 	
-	public TablePanel()
+	
+	
+	public TablePanel(String str)
 	{
-		currentTableView = "Library";
-		this.setSize(800,600);
+		currentTableView = str;
+		this.setSize(900,600);
 		this.setBorder(BorderFactory.createTitledBorder(currentTableView));
 		currentIndex = 0;
 	
 		MyTransferHandler = new DropHandler(this);
-		mplayer=MediaPlayer.getMediaPlayerObj();
+		//mplayer=MediaPlayer.getMediaPlayerObj();
+		
 		database = MyTunesDB.getDataBaseObject();
-		model = new DefaultTableModel(database.getDisplaySet("library"), database.getColumnNames()) 
+		model = new DefaultTableModel(database.getDisplaySet("Library"), database.getColumnNames()) 
     	{
     		@Override
     	    public boolean isCellEditable(int row, int column) 
@@ -54,7 +68,7 @@ public class TablePanel extends JPanel implements MouseListener
     	       return false;
     	    }
     	};
-    	database.setUI(model);
+    	
     	table = new JTable(model)
         {
         	  public Component prepareRenderer(TableCellRenderer renderer,int Index_row, int Index_col) 
@@ -80,11 +94,14 @@ public class TablePanel extends JPanel implements MouseListener
         	  	}
         	  
         };
-        
+        database.setUI(this);
+        //table.getColumnModel().getColumn(5).setPreferredWidth(0);
         table.addMouseListener(this);
         table.setDropMode(DropMode.USE_SELECTION);
         table.setTransferHandler(MyTransferHandler);
         table.setModel(model);
+        
+     
         maxIndex=table.getRowCount();
         Dimension d = new Dimension(850,500);
         table.setPreferredScrollableViewportSize(d);
@@ -102,15 +119,18 @@ public class TablePanel extends JPanel implements MouseListener
         popup.add(popDelete);
         scroller.setViewportView(table);
         table.setFillsViewportHeight(true);
-        
-        this.add(scroller);
-		
+        updateUI(currentTableView);
+        this.add(scroller);	
+        //table.removeColumn(table.getColumnModel().getColumn(5));
 	}
 	public JTable getTableObj()
 	{
 		return table;
 	}
-	
+	public void setMediaPlayer(MediaPlayer mp)
+    {
+    	mplayer = mp;
+    }
 	public void scrollToSelected()
 	{
 		Rectangle cellRect = table.getCellRect(table.getSelectedRow(), 0, false);
@@ -125,10 +145,12 @@ public class TablePanel extends JPanel implements MouseListener
 		boolean success = false;
     	if(fileName.endsWith("mp3"))
     	{
-    		success = database.insertEntry("library", fileName);
+    		success = database.insertEntry("Library", fileName);
+    		if(!currentTableView.equals("Library"))database.insertIntoPlaylist(fileName, currentTableView);
     		currentIndex = database.getIndexOf(fileName);
     		maxIndex = table.getRowCount();
     	}
+    	updateUI(currentTableView);
     	return success;
 	}
 	
@@ -136,19 +158,20 @@ public class TablePanel extends JPanel implements MouseListener
     {
     	for(int i = rows.length; i > 0; i--)
     	{
-    		String fileName = (String)(model.getValueAt(rows[i-1],model.getColumnCount()-1));
+    		String fileName = (String)((String)model.getValueAt(table.getSelectedRow(), model.getColumnCount()-1));
     		System.out.println("deleting: " + fileName);
-    		database.deleteEntry("library", fileName);
+    		database.deleteEntry(currentTableView, fileName);
     	}
     	
     	maxIndex = table.getRowCount();
+    	updateUI(currentTableView);
     }
 	
 	public int getIndexOf(String str)
     {
     	for(int i = 0; i < table.getRowCount(); i++)
     	{
-    		if(str.equals((String)table.getValueAt(i, 5)))
+    		if(str.equals((String)model.getValueAt(i, model.getColumnCount()-1)))
     		{
     			return i;
     		}
@@ -159,7 +182,7 @@ public class TablePanel extends JPanel implements MouseListener
 	public String getFirstSong()
 	{
 		table.setRowSelectionInterval(0, 0);
-		return (String)table.getValueAt(0, table.getColumnCount()-1);
+		return (String)model.getValueAt(0, model.getColumnCount()-1);
 	}
 	
 	public String getNextSong()
@@ -167,7 +190,7 @@ public class TablePanel extends JPanel implements MouseListener
 		currentIndex = (currentIndex+1)%table.getRowCount();
 		table.setRowSelectionInterval(currentIndex, currentIndex);
 		scrollToSelected();
-		return (String)table.getValueAt(currentIndex, 5);
+		return (String)model.getValueAt(currentIndex, model.getColumnCount()-1);
 		
 	}
 	
@@ -176,12 +199,14 @@ public class TablePanel extends JPanel implements MouseListener
 	    currentIndex = (currentIndex == 0) ? maxIndex-1:currentIndex-1;
 		table.setRowSelectionInterval(currentIndex, currentIndex);
 		scrollToSelected();
-		return (String)table.getValueAt(currentIndex, 5);
+		return (String)model.getValueAt(currentIndex, model.getColumnCount()-1);
 	}
 	
-	public void hookUP(MediaPlayer mm)
+	public void setCurrentTableView(String str)
 	{
-		mplayer = mm;
+		currentTableView = str;
+		this.setBorder(BorderFactory.createTitledBorder(currentTableView));
+		updateUI(currentTableView);
 	}
 	
 	@Override
@@ -191,29 +216,21 @@ public class TablePanel extends JPanel implements MouseListener
 		{
 			if(arg0.getSource() == table)
 			{
+				arg0.consume();
 				if(mplayer.isPlaying())
 					mplayer.stop();
 					
 				currentIndex = table.getSelectedRow();
-				mplayer.play((String)table.getValueAt(currentIndex, 5));
-				currentSong=(String)table.getValueAt(currentIndex, 5);
+				//mplayer.play((String)table.getValueAt(currentIndex, 5));
+				mplayer.pauseOthers();
+				mplayer.play((String)model.getValueAt(currentIndex, model.getColumnCount()-1));
+				//currentSong=(String)model.getValueAt(currentIndex, model.getColumnCount()-1);
 			}
 		}
 		
 	}
 	
-	@Override
-	public void mouseEntered(MouseEvent arg0) {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
-	public void mouseExited(MouseEvent arg0) {
-		// TODO Auto-generated method stub
-		
-	}
-
+	
 	@Override
 	public void mousePressed(MouseEvent arg0) {
 		// TODO Auto-generated method stub
@@ -225,6 +242,7 @@ public class TablePanel extends JPanel implements MouseListener
 		{
 			deleteRows(table.getSelectedRows());
 		}
+		
 		if(arg0.getSource() == popOpen)
 		{
 			
@@ -241,9 +259,12 @@ public class TablePanel extends JPanel implements MouseListener
 		    	if(addToList(chosenFile))
 		    	{
 		    		mplayer.stop();
+		    		currentIndex = getIndexOf(chosenFile);
+		    		if(currentIndex != -1);
+		    		JOptionPane.showMessageDialog(null,"CurenntIndex == " + currentIndex);
 		    		table.setRowSelectionInterval(currentIndex, currentIndex);
 					mplayer.play(chosenFile);
-					currentSong=chosenFile;
+					//currentSong=chosenFile;
 		    	}
 		    }
 		}
@@ -251,16 +272,37 @@ public class TablePanel extends JPanel implements MouseListener
 	}
 
 	@Override
-	public void mouseReleased(MouseEvent arg0) {
-		// TODO Auto-generated method stub
-		
-	}
+	public void mouseEntered(MouseEvent arg0) {}
+
+	@Override
+	public void mouseExited(MouseEvent arg0) {}
+
+	@Override
+	public void mouseReleased(MouseEvent arg0) {}
 	
 	@Override
 	public void paintComponent(Graphics g) 
     {
 		ImageIcon ic = new ImageIcon(getClass().getResource("background.png"));
       g.drawImage(ic.getImage(), 0, 0, getWidth(), getHeight(), this);
+    }
+	public void updateUI(String tableName)
+    {
+    	
+    	if (model != null)
+    	{
+    		System.out.println(this.getClass().toString()+"::updateUI(String): arg0 = " + tableName+"\n\n");
+    		//JTable tm = tableUI.getTableObj();
+    		model.setDataVector(database.getDisplaySet(tableName), database.getColumnNames());
+    		table.removeColumn(table.getColumnModel().getColumn(table.getColumnModel().getColumnIndex("FileName")));
+    		table.removeColumn(table.getColumnModel().getColumn(table.getColumnModel().getColumnIndex("Duration")));
+    		table.getColumnModel().getColumn(table.getColumnModel().getColumnIndex("Year")).setMaxWidth(45);
+    		table.getColumnModel().getColumn(table.getColumnModel().getColumnIndex("Time")).setMaxWidth(40);
+    		table.getColumnModel().getColumn(table.getColumnModel().getColumnIndex("Genre")).setMaxWidth(60);
+    		
+    		//tm.moveColumn(column, targetColumn); // actually, just fix the db
+    	}
+    	maxIndex = table.getRowCount();
     }
 	/*public static void main(String[] args) {
 		// TODO Auto-generated method stub

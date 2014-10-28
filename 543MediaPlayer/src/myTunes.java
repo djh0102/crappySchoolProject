@@ -10,105 +10,40 @@ import javax.swing.JSeparator;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
 
-class myTunes extends JFrame implements MouseListener
+class myTunes extends JFrame 
 {
-	PlayerPanel player;
-	TablePanel table;
-	private JMenuBar menuBar;
-    private JMenu menu;
-    private JMenuItem static_Open;
-    private JMenuItem static_Delete;
-    private JMenuItem addSong;
-    private JMenuItem exit;
+	PlayerPanel[] currentPlayers = new PlayerPanel[7];// limit 7 open players at one time
+	int playerNum = 0;
 	public myTunes() 
 	{
-		this.setSize(900,800);
-		this.setResizable(false);
-		menuBar = new JMenuBar();
-        menu = new JMenu("File");
-        static_Open = new JMenuItem("Open");
-        static_Open.addMouseListener(this);
-        static_Delete =  new JMenuItem("Delete");
-        static_Delete.addMouseListener(this);
-        addSong =  new JMenuItem("Add");
-        addSong.addMouseListener(this);
-        exit = new JMenuItem("Exit");
-        exit.addMouseListener(this);
-        
-        menu.add(static_Open);
-        menu.add(new JSeparator());
-        menu.add(addSong);
-        menu.add(new JSeparator());
-        menu.add(static_Delete);
-        menu.add(new JSeparator());
-        menu.add(exit);
-        menuBar.add(menu);
-        this.setJMenuBar(menuBar);
-		
-        player = new PlayerPanel();
-		table = new TablePanel();
-		player.setTablePTR(table);
-		table.hookUP(MediaPlayer.getMediaPlayerObj());
-		
-		this.add(player, BorderLayout.CENTER);
-		this.add(table,BorderLayout.SOUTH);
-		this.setVisible(true);
-		this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		BaseWindow bw = new BaseWindow(this);
+		currentPlayers[playerNum] = bw.getPlayerPanel();
+		playerNum = playerNum+1;
+		bw.getPlayerPanel().setMainController(this);
+	}
+	public void openPlayListWindow(String str)
+	{
+		PlayListWindow plw = new PlayListWindow(str);
+		currentPlayers[playerNum] = plw.getPlayerPanel();
+		playerNum = playerNum+1;
+		plw.getPlayerPanel().setMainController(this);
 	}
 
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
 		new myTunes();
 	}
-
-	@Override
-	public void mouseClicked(MouseEvent e) {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
-	public void mouseEntered(MouseEvent e) {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
-	public void mouseExited(MouseEvent e) {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
-	public void mousePressed(MouseEvent e) {
-		// TODO Auto-generated method stub
-		if(e.getSource() == exit)
+	public void reservePlayer(PlayerPanel pp)
+	{
+		for(int i =0; i < playerNum; i++)
 		{
-			System.exit(0);
+			if(currentPlayers[i] != pp)
+			{
+				currentPlayers[i].shutUP();
+			}
 		}
-		if(e.getSource() == static_Open || e.getSource() == addSong)
-		{
-			JFileChooser chooser = new JFileChooser();
-		    FileNameExtensionFilter filter = new FileNameExtensionFilter("MP3 Audio Files", "mp3");
-		    chooser.setFileFilter(filter);
-		    chooser.grabFocus();
-		    int returnVal = chooser.showOpenDialog(menu);
-		    
-		    if(returnVal == JFileChooser.APPROVE_OPTION)
-		    {
-		    	String chosenFile = chooser.getSelectedFile().getAbsolutePath();
-		    	if(e.getSource() == static_Open)MediaPlayer.getMediaPlayerObj().play(chosenFile);
-		    	else
-		    		table.addToList(chosenFile);
-		    }
-		}
-		
 	}
 
-	@Override
-	public void mouseReleased(MouseEvent e) {
-		// TODO Auto-generated method stub
-		
-	}
+	
 
 }

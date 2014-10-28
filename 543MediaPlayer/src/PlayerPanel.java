@@ -27,14 +27,14 @@ import javax.swing.border.LineBorder;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import javax.swing.plaf.basic.BasicSliderUI;
-/* 10/22: did some refractoring, still a little more needed. */
+
 public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 {
 	/* gui stuff */
 	JLabel nowPlayingArt;
-	JLabel progressTime;
+	JLabel timeRemaining;
 	String duration = "0:00";
-	JLabel duration_label;
+	JLabel currentTime;
 	JButton play;
 	JButton stop;
 	JButton skip_prev;
@@ -51,14 +51,16 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 	JPopupMenu popup;
 	JMenuItem popShowLarge;
     MediaPlayer player;
-	
+    myTunes controller;
     /* player stuff */
   
     /* state variables */
     boolean stopped = true;
     boolean playing = false;
     boolean seeking = false;
+    boolean active;
     boolean loop;
+    String currentSong;
     /* loop stuff */
 	String loop_start_song; 
 	String loop_end_song;  /* these two must be equal in order to loop */
@@ -84,7 +86,7 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 				//System.out.println("in loopwatcher, progressslide value = " + progressSlide.getValue() + ", loop =="
 				//		+ " " + loop + ", loop_endbytes == " + loop_endbytes);
 				
-				if((loop== true) && (currentbytes >= loop_endbytes))
+				if((loop== true) && (currentbytes >= loop_endbytes-(100*player.getBitRate())))
 				{
 					seek = true;
 					System.out.println("made it here!!");
@@ -98,37 +100,14 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 			}
 		}
 	}
-	class MediaDuration extends Thread
-	{
-		public void run()
-		{
-			//System.out.println("i'm here");
-			while(true)
-			{
-				/* i don't know why, but it won't work without this delay ?!?! */
-				try {
-					Thread.sleep(1);
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-				//while(player.isPlaying() == false);
-				if(player.isPlaying())
-				{
-					//System.out.print("i'm here");
-				    duration_label.setText(convertMicroSeconds((progressSlide.getValue())/player.getBitRate()*8000));
-				    progressTime.setText(convertMicroSeconds(duration_micro - (progressSlide.getValue())/player.getBitRate()*8000));
-				}
-			}
-		}
-			
-	}
+	
 	LoopWatcher lp;
 	
     public PlayerPanel()
 	{
-		player = MediaPlayer.getMediaPlayerObj(this);
-		this.setSize(800,200);
+		//player = MediaPlayer.getMediaPlayerObj(this);
+    	player = new MediaPlayer(this);
+		this.setSize(900,200);
 		this.setLayout(null); /* i'll put things exactly where i want them */
 		
 		/* create the buttons put them in place */
@@ -192,14 +171,27 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 		progressSlide.setSize(300, 30);
 		progressSlide.setValue(0);
 		progressSlide.addMouseListener(this);
+		progressSlide.addChangeListener(new ChangeListener() 
+        {
+			/* whenever this value of the slider changes, the time of the current slider location is calculated */
+        	  public void stateChanged(ChangeEvent event) 
+        	  {
+        		  if(player.getCurrentSong() != null)
+  				  {
+  				    currentTime.setText(convertMicroSeconds((progressSlide.getValue())/player.getBitRate()*8000));
+  				    timeRemaining.setText(convertMicroSeconds(duration_micro - (progressSlide.getValue())/player.getBitRate()*8000));
+  				  }
+			  } 
+        	  
+        });
 		
-		progressTime = new JLabel("0:00");
-		progressTime.setSize(90,50);
-		progressTime.setLocation(progressSlide.getX()+300-10,progressSlide.getY()-12);
+		timeRemaining = new JLabel("0:00");
+		timeRemaining.setSize(90,50);
+		timeRemaining.setLocation(progressSlide.getX()+300-10,progressSlide.getY()-12);
 		
-		duration_label = new JLabel(duration);
-		duration_label.setSize(90,50);
-		duration_label.setLocation(progressSlide.getX()-25,progressSlide.getY()-12);
+		currentTime = new JLabel(duration);
+		currentTime.setSize(90,50);
+		currentTime.setLocation(progressSlide.getX()-25,progressSlide.getY()-12);
 		/* the label the hold the artwork from the mp3 */
 		nowPlayingArt = new JLabel();
 		nowPlayingArt.setSize(120,120);
@@ -235,8 +227,8 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 		this.add(skip_next);
 		this.add(volumeSlide);
 		this.add(progressSlide);
-		this.add(progressTime);
-		this.add(duration_label);
+		this.add(timeRemaining);
+		this.add(currentTime);
 		this.add(nowPlayingArt);
 		this.add(jsp1);
 		this.add(repeat);
@@ -244,8 +236,8 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 		this.add(loop_end);
 		this.setIgnoreRepaint(true);
 		this.setVisible(true);
-		MediaDuration md = new MediaDuration();
-		md.start();
+		//MediaDuration md = new MediaDuration();
+		//md.start();
 	}
     /* control functions */
     public void setTablePTR(TablePanel tpa)
@@ -262,24 +254,43 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
     public void setProgress(int x)
     {
     	progressSlide.setValue(x);
-    	currentbytes = x;
-    	
+    	currentbytes = x;	
+    }
+    /* this is used to check if the mediaplayer is playing our song */
+    public void setCurrentSong(String str)
+    {
+    	currentSong = str;
     }
     public void setProgressMax(int x)
     {
     	progressSlide.setMaximum(x);
     }
-    
+    public void setActive(boolean b)
+    {
+    	active = b;  	
+    }
+  
     public void setPlayerText(String str)
     {
     	nowPlaying.setText(str);
     }
-    
+    public void setMainController(myTunes mt)
+    {
+    	controller = mt;
+    }
+    public void shutUP()
+    {
+    	player.pause();
+    }
     public boolean isSeeking()
     {
     	return seeking;
     }
-    
+    public void play(String str)
+    {
+    	reservePlayer();
+    	player.play(str);
+    }
     public boolean getRepeat()
     {
     	return repeat.isSelected();
@@ -311,24 +322,34 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
     
     public void playFirstSong()
     {
+    	if(!player.isPlaying())controller.reservePlayer(this);
     	player.play(tablepanel.getFirstSong());
     }
     
     public void playNextSong() 
     {
+    	controller.reservePlayer(this);
     	player.stop();
     	player.play(tablepanel.getNextSong());
     }
     
     public void playPreviousSong() 
     {
+    	controller.reservePlayer(this);
     	player.stop();
     	player.play(tablepanel.getPreviousSong());
     }
-    
+    public void reservePlayer()
+    {
+    	controller.reservePlayer(this);
+    }
     public void setCurrentTime(String str)
     {
-    	progressTime.setText(str);
+    	timeRemaining.setText(str);
+    }
+    public MediaPlayer getMediaPlayer()
+    {
+    	return player;
     }
     
 	public void mouseClicked(MouseEvent arg0) 
@@ -406,6 +427,7 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 		}
 		else if(arg0.getSource() == play)
 		{
+			if(!player.isPlaying())controller.reservePlayer(this);
 			player.play_pause_Event();
 		}
 			
@@ -423,14 +445,18 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 			loop_end.setSelected(false);
 			repeat.setSelected(false);
 			/* clear the progress time */
-			progressTime.setText(convertMicroSeconds(duration_micro));
-			duration_label.setText("0:00");
+			timeRemaining.setText(convertMicroSeconds(duration_micro));
+			currentTime.setText("0:00");
 			
 		}
 		else if(arg0.getSource() == loop_start)
 		{
 			/* user unselected the button */
-			if(!loop_start.isSelected())clearLoop();
+			if(!loop_start.isSelected())
+			{
+				clearLoop();
+				loop_end.setSelected(false);
+			}
 			/* user selected the button */
 			else
 				setLoopStart();
@@ -480,8 +506,12 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 		loop_start_song = null;
 		loop_end_song = null;
 		loop = false;
-		System.out.println("killing loopWatcher");
-		if(lp != null)lp.stop();
+		
+		if(lp.isAlive())
+			{
+			System.out.println("killing loopWatcher");
+			lp.stop();
+			}
 	}
 	
 	public Dimension getSize()
