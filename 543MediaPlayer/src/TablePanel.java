@@ -18,6 +18,7 @@ import javax.swing.BorderFactory;
 import javax.swing.DropMode;
 import javax.swing.ImageIcon;
 import javax.swing.JFileChooser;
+import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -39,13 +40,14 @@ public class TablePanel extends JPanel implements MouseListener
 	JScrollPane scroller;
 	MyTunesDB database;
 	int currentIndex,maxIndex;
-	DropHandler MyTransferHandler;
+	FileTransferHandler MyTransferHandler;
 	MediaPlayer mplayer;
 	//String currentSong;
 	String currentTableView;
 	JPopupMenu popup;
 	JMenuItem popOpen;
 	JMenuItem popDelete;
+	JMenu addToPlaylist;
 	
 	
 	
@@ -56,7 +58,7 @@ public class TablePanel extends JPanel implements MouseListener
 		this.setBorder(BorderFactory.createTitledBorder(currentTableView));
 		currentIndex = 0;
 	
-		MyTransferHandler = new DropHandler(this);
+		MyTransferHandler = new FileTransferHandler(this);
 		//mplayer=MediaPlayer.getMediaPlayerObj();
 		
 		database = MyTunesDB.getDataBaseObject();
@@ -98,6 +100,7 @@ public class TablePanel extends JPanel implements MouseListener
         //table.getColumnModel().getColumn(5).setPreferredWidth(0);
         table.addMouseListener(this);
         table.setDropMode(DropMode.USE_SELECTION);
+        table.setDragEnabled(true);
         table.setTransferHandler(MyTransferHandler);
         table.setModel(model);
         
@@ -196,6 +199,8 @@ public class TablePanel extends JPanel implements MouseListener
 	
 	public String getPreviousSong()
 	{
+		maxIndex = table.getRowCount();
+		//System.out.println("maxIndex = " + maxIndex + " and currentIndex == " + currentIndex);
 	    currentIndex = (currentIndex == 0) ? maxIndex-1:currentIndex-1;
 		table.setRowSelectionInterval(currentIndex, currentIndex);
 		scrollToSelected();
@@ -207,8 +212,47 @@ public class TablePanel extends JPanel implements MouseListener
 		currentTableView = str;
 		this.setBorder(BorderFactory.createTitledBorder(currentTableView));
 		updateUI(currentTableView);
+		int tmp = -1;
+		if(mplayer!=null && mplayer.getCurrentSong() != null)tmp = getIndexOf(mplayer.getCurrentSong());
+		if(tmp != -1)
+		{
+			currentIndex = tmp;
+			table.setRowSelectionInterval(currentIndex, currentIndex);
+			//table.setRowSelectionInterval(currentIndex, currentIndex);
+		}
+		else 
+			currentIndex = 0;
+		
+		
 	}
 	
+	private void buildPopUp(MouseEvent arg0)
+	{
+		Object[] playlistNames;
+		JMenuItem submenuItem;
+		popup = new JPopupMenu();
+        popOpen = new JMenuItem("Open");
+        popOpen.addMouseListener(this);
+        popDelete = new JMenuItem("Delete");
+        popDelete.addMouseListener(this);
+        popup.add(popOpen);
+        popup.add(new JSeparator());
+        popup.add(popDelete);
+        popup.add(new JSeparator());
+        addToPlaylist = new JMenu("Add Playlist");
+        playlistNames = database.getPlaylistNames();
+        for(int i = 0; i < playlistNames.length; i++)
+        {
+        	//addToPlaylist.add(new JMenuItem((String)playlistNames[i]));
+        	submenuItem = new JMenuItem((String)playlistNames[i]);
+        	submenuItem.addMouseListener(this);
+        	addToPlaylist.add(submenuItem);
+        	if(i+1 < playlistNames.length)addToPlaylist.add(new JSeparator());
+        }
+        popup.add(addToPlaylist);
+        popup.show(arg0.getComponent(),arg0.getX(),arg0.getY());
+        
+	}
 	@Override
 	public void mouseClicked(MouseEvent arg0) {
 		// TODO Auto-generated method stub
@@ -236,14 +280,16 @@ public class TablePanel extends JPanel implements MouseListener
 		// TODO Auto-generated method stub
 		if (arg0.isMetaDown())
 		{
-			popup.show(arg0.getComponent(),arg0.getX(),arg0.getY());
+			//popup.show(arg0.getComponent(),arg0.getX(),arg0.getY());
+			buildPopUp(arg0);
 		}
-		if(arg0.getSource() == popDelete)
+		
+		else if(arg0.getSource() == popDelete)
 		{
 			deleteRows(table.getSelectedRows());
 		}
 		
-		if(arg0.getSource() == popOpen)
+		else if(arg0.getSource() == popOpen)
 		{
 			
 			JFileChooser chooser = new JFileChooser(); 
@@ -268,6 +314,21 @@ public class TablePanel extends JPanel implements MouseListener
 		    	}
 		    }
 		}
+		else
+		{
+			if(arg0.getSource() instanceof JMenuItem)
+			{
+				JMenuItem selected = (JMenuItem)arg0.getSource();
+				System.out.println("You clicked on:" + selected.getText());
+				//System.out.println("table.getSelectedRow() == " + table.getSelectedRow());
+				if(table.getSelectedRow() != -1)
+				{
+					String playlistName = selected.getText();
+					String fileName = (String) model.getValueAt(table.getSelectedRow(), model.getColumnCount()-1);
+					database.insertIntoPlaylist(fileName, playlistName);
+				}
+			}
+		}
 		
 	}
 
@@ -286,6 +347,7 @@ public class TablePanel extends JPanel implements MouseListener
 		ImageIcon ic = new ImageIcon(getClass().getResource("background.png"));
       g.drawImage(ic.getImage(), 0, 0, getWidth(), getHeight(), this);
     }
+	
 	public void updateUI(String tableName)
     {
     	

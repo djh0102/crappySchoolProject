@@ -292,18 +292,19 @@ public class MyTunesDB
     	System.out.println(this.getClass().toString()+"deletePlaylist("+str+")");
     	try {
 			stmt = conn.createStatement();
+			stmt.execute("delete from Playlist where name = '" + str + "'");
 			stmt.execute("delete from PlaylistNames where name = '" + str + "'");
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
     }
-    public void insertIntoPlaylist(String str1,String str2)
+    public void insertIntoPlaylist(String fileName,String playlistName)
     {
     	try {
 			stmt = conn.createStatement();
-			insertEntry("library",str2);
-			stmt.execute("insert into playlist values( '" + str1 +"', '" + str2 + "')");
+			insertEntry("library",fileName);
+			stmt.execute("insert into playlist values( '" + makeSQLCompatible(fileName) +"', '" + makeSQLCompatible(playlistName) + "')");
 			stmt.close();
 		} catch (SQLException e) {
 			

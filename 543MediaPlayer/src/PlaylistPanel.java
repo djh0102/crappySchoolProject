@@ -267,6 +267,8 @@ public class PlaylistPanel extends JPanel implements MouseListener
 		}
 		if(arg0.getSource() == newWindow)
 		{
+			arg0.consume();
+			if(control!= null)
 			control.openPlayListWindow(getSelectedNode());
 		}
 	}

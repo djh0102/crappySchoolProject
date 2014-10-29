@@ -90,7 +90,6 @@ public class MediaPlayer implements BasicPlayerListener
 	{
 		
 		if(filename == null)return;
-		//if(player.getStatus() == player.PLAYING)JOptionPane.showMessageDialog(null, "I'm busy");
 		currentSong = filename;
 		playerUI.setCurrentSong(filename);
 		try
@@ -221,8 +220,6 @@ public class MediaPlayer implements BasicPlayerListener
 			e1.printStackTrace();
 		}
 		tagsize = (int) (mp3file.getLength() - (mp3file.getLengthInMilliseconds()/8*bitrate));
-		//System.out.println("myTag = "+ (mp3file.getLength() - (mp3file.getLengthInMilliseconds()/8)*bitrate));
-		//System.out.println(mp3file.getStartOffset());
 		String songInfo = "Now Playing:\n";
 		songInfo = songInfo + ("Title: " + properties.get("title"));
 		songInfo += ("\nAuthor: " + properties.get("author"));

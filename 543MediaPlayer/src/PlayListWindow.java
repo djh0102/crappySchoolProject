@@ -1,6 +1,8 @@
 import java.awt.BorderLayout;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.awt.event.WindowEvent;
+import java.awt.event.WindowListener;
 
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
@@ -74,7 +76,52 @@ public class PlayListWindow extends JFrame implements MouseListener
 		//newWindow.add(table);
 		//newWindow.add(plPanel);
 		newWindow.setVisible(true);
-    }
+		
+		newWindow.addWindowListener(new WindowListener() {
+	        public void windowClosing(WindowEvent e) 
+	        {
+	            player.Stop();
+	        }
+
+			@Override
+			public void windowActivated(WindowEvent arg0) {
+				// TODO Auto-generated method stub
+				
+			}
+
+			@Override
+			public void windowClosed(WindowEvent arg0) {
+				// TODO Auto-generated method stub
+				player.Stop();
+			}
+
+			@Override
+			public void windowDeactivated(WindowEvent arg0) {
+				// TODO Auto-generated method stub
+				
+			}
+
+			@Override
+			public void windowDeiconified(WindowEvent arg0) {
+				// TODO Auto-generated method stub
+				
+			}
+
+			@Override
+			public void windowIconified(WindowEvent arg0) {
+				// TODO Auto-generated method stub
+				
+			}
+
+			@Override
+			public void windowOpened(WindowEvent arg0) {
+				// TODO Auto-generated method stub
+				
+			}
+
+	    });
+	}
+    
     public PlayerPanel getPlayerPanel()
     {
     	return player;

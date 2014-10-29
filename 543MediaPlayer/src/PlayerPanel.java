@@ -83,15 +83,20 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 			System.out.println(loop_startbytes);
 			while(true)
 			{
-				//System.out.println("in loopwatcher, progressslide value = " + progressSlide.getValue() + ", loop =="
-				//		+ " " + loop + ", loop_endbytes == " + loop_endbytes);
-				
+				//System.out.println("Loopwatcher is alive");
+				try {
+					Thread.sleep(1);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 				if((loop== true) && (currentbytes >= loop_endbytes-(100*player.getBitRate())))
 				{
 					seek = true;
-					System.out.println("made it here!!");
 				}
-				else if((loop==true) && (currentbytes < loop_endbytes))seek=false;
+				else if((loop==true) && (currentbytes < loop_endbytes))
+					seek=false;
+				
 				if(seek)
 				{
 					player.seek(loop_startbytes);
@@ -192,10 +197,11 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 		currentTime = new JLabel(duration);
 		currentTime.setSize(90,50);
 		currentTime.setLocation(progressSlide.getX()-25,progressSlide.getY()-12);
+		
 		/* the label the hold the artwork from the mp3 */
 		nowPlayingArt = new JLabel();
 		nowPlayingArt.setSize(120,120);
-		nowPlayingArt.setBackground(Color.WHITE);
+		nowPlayingArt.setBackground(new Color(159,0,0));
 		nowPlayingArt.setLocation(290, 12);
 		nowPlayingArt.setBorder(new LineBorder(Color.WHITE, 3, true)); 
 		nowPlayingArt.setIcon(new ImageIcon("/Users/daniel/Desktop/defualtArt.png"));
@@ -204,8 +210,9 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 		/* a simple text area to show simple song info */
 		nowPlaying = new JTextArea();
 		nowPlaying.setSize(200,120);
-		nowPlaying.setBorder(new LineBorder(Color.WHITE, 5, true));
-		nowPlaying.setBackground(Color.WHITE);
+		nowPlaying.setBorder(new LineBorder(Color.WHITE, 3, true));
+		nowPlaying.setBackground(new Color(129,120,120));
+		nowPlaying.setForeground(Color.WHITE);
 		nowPlaying.setLocation(415,12);
 		
 		jsp1 = new JScrollPane(nowPlaying);
@@ -351,7 +358,10 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
     {
     	return player;
     }
-    
+    public void Stop()
+    {
+    	player.stop();
+    }
 	public void mouseClicked(MouseEvent arg0) 
 	{
 		// TODO Auto-generated method stub	
@@ -508,10 +518,10 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 		loop = false;
 		
 		if(lp.isAlive())
-			{
+		{
 			System.out.println("killing loopWatcher");
 			lp.stop();
-			}
+		}
 	}
 	
 	public Dimension getSize()

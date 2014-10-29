@@ -14,15 +14,18 @@ class myTunes extends JFrame
 {
 	PlayerPanel[] currentPlayers = new PlayerPanel[7];// limit 7 open players at one time
 	int playerNum = 0;
+	BaseWindow bw;
 	public myTunes() 
 	{
-		BaseWindow bw = new BaseWindow(this);
+		bw = new BaseWindow(this);
 		currentPlayers[playerNum] = bw.getPlayerPanel();
 		playerNum = playerNum+1;
 		bw.getPlayerPanel().setMainController(this);
 	}
 	public void openPlayListWindow(String str)
 	{
+		TablePanel tp = bw.getTablePanel();
+		if(tp!=null)tp.setCurrentTableView("Library");
 		PlayListWindow plw = new PlayListWindow(str);
 		currentPlayers[playerNum] = plw.getPlayerPanel();
 		playerNum = playerNum+1;

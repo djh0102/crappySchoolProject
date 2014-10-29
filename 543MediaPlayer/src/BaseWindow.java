@@ -1,5 +1,7 @@
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.awt.event.WindowEvent;
+import java.awt.event.WindowListener;
 
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
@@ -75,11 +77,58 @@ public class BaseWindow extends JFrame  implements MouseListener
 		this.add(plPanel);
 		this.setVisible(true);
 		this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		this.addWindowListener(new WindowListener() {
+	        public void windowClosing(WindowEvent e) 
+	        {
+	            player.Stop();
+	        }
+
+			@Override
+			public void windowActivated(WindowEvent arg0) {
+				// TODO Auto-generated method stub
+				
+			}
+
+			@Override
+			public void windowClosed(WindowEvent arg0) {
+				// TODO Auto-generated method stub
+				
+			}
+
+			@Override
+			public void windowDeactivated(WindowEvent arg0) {
+				// TODO Auto-generated method stub
+				
+			}
+
+			@Override
+			public void windowDeiconified(WindowEvent arg0) {
+				// TODO Auto-generated method stub
+				
+			}
+
+			@Override
+			public void windowIconified(WindowEvent arg0) {
+				// TODO Auto-generated method stub
+				
+			}
+
+			@Override
+			public void windowOpened(WindowEvent arg0) {
+				// TODO Auto-generated method stub
+				
+			}
+
+	    });
 	}
 
     public PlayerPanel getPlayerPanel()
     {
     	return player;
+    }
+    public TablePanel getTablePanel()
+    {
+    	return table;
     }
 	@Override
 	public void mouseClicked(MouseEvent arg0) {
