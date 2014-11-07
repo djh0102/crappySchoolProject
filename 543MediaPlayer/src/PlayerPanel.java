@@ -6,9 +6,10 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-
+import javax.swing.SwingConstants;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
@@ -33,6 +34,7 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 	/* gui stuff */
 	JLabel nowPlayingArt;
 	JLabel timeRemaining;
+	JLabel activeIndicator;
 	String duration = "0:00";
 	JLabel currentTime;
 	JButton play;
@@ -87,7 +89,6 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 				try {
 					Thread.sleep(1);
 				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 				if((loop== true) && (currentbytes >= loop_endbytes-(100*player.getBitRate())))
@@ -110,7 +111,6 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 	
     public PlayerPanel()
 	{
-		//player = MediaPlayer.getMediaPlayerObj(this);
     	player = new MediaPlayer(this);
 		this.setSize(900,200);
 		this.setLayout(null); /* i'll put things exactly where i want them */
@@ -139,6 +139,10 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 		skip_next.setLocation(192, 12);
 		skip_next.setSize(new Dimension(50,50));
 		skip_next.addActionListener(this);
+		
+		repeat = new JToggleButton("R");
+		repeat.setSize(30,30);
+		repeat.setLocation(643,13);
 		
 		loop_start = new JToggleButton("A");
 		loop_start.setSize(30,30);
@@ -178,7 +182,7 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 		progressSlide.addMouseListener(this);
 		progressSlide.addChangeListener(new ChangeListener() 
         {
-			/* whenever this value of the slider changes, the time of the current slider location is calculated */
+			/* whenever this value of the slider changes, the time index of the current slider location is calculated */
         	  public void stateChanged(ChangeEvent event) 
         	  {
         		  if(player.getCurrentSong() != null)
@@ -204,7 +208,7 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 		nowPlayingArt.setBackground(new Color(159,0,0));
 		nowPlayingArt.setLocation(290, 12);
 		nowPlayingArt.setBorder(new LineBorder(Color.WHITE, 3, true)); 
-		nowPlayingArt.setIcon(new ImageIcon("/Users/daniel/Desktop/defualtArt.png"));
+		nowPlayingArt.setIcon(new ImageIcon(getClass().getResource("defualtArt.png")));
 		nowPlayingArt.addMouseListener(this);
 		
 		/* a simple text area to show simple song info */
@@ -219,9 +223,13 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 		jsp1.setLocation(411,13);
 		jsp1.setSize(220,120);
 		
-		repeat = new JToggleButton("R");
-		repeat.setSize(30,30);
-		repeat.setLocation(643,13);
+		activeIndicator = new JLabel("Inactive",SwingConstants.CENTER);
+		activeIndicator.setBorder(new LineBorder(Color.BLACK,1));
+		activeIndicator.setBackground(Color.RED);
+		activeIndicator.setForeground(Color.WHITE);
+		activeIndicator.setOpaque(true);
+		activeIndicator.setSize(114,30);
+		activeIndicator.setLocation(643,53);
 		
 		popup = new JPopupMenu();
 		popShowLarge = new JMenuItem("Show Large Art");
@@ -241,10 +249,10 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 		this.add(repeat);
 		this.add(loop_start);
 		this.add(loop_end);
+		this.add(activeIndicator);
 		this.setIgnoreRepaint(true);
 		this.setVisible(true);
-		//MediaDuration md = new MediaDuration();
-		//md.start();
+		
 	}
     /* control functions */
     public void setTablePTR(TablePanel tpa)
@@ -288,6 +296,10 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
     public void shutUP()
     {
     	player.pause();
+    	activeIndicator.setBackground(Color.RED);
+    	activeIndicator.setForeground(Color.WHITE);
+    	activeIndicator.setText("Inactive");
+    	tablepanel.setInactive();
     }
     public boolean isSeeking()
     {
@@ -310,7 +322,9 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
     
     public void setCurrentArt(byte[] img) throws IOException
     {
-    	if((img != null) && img.length > 10)
+    	
+    	System.out.println("Now playing::" + player.getCurrentSong());
+    	if(img != null)
     	{
     		largeArt = img;
     		ImageIcon imc = new ImageIcon(img);
@@ -326,11 +340,20 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
     		nowPlayingArt.setIcon(tmp);
     	}
     }
-    
+    public void reset()
+    {
+    	ImageIcon tmp = new ImageIcon(getClass().getResource("defualtArt.png"));
+		largeArt = null;
+		nowPlayingArt.setIcon(tmp);
+		nowPlaying.setText("");
+		progressSlide.setValue(0);
+		timeRemaining.setText("0:00");
+		
+    }
     public void playFirstSong()
     {
     	if(!player.isPlaying())controller.reservePlayer(this);
-    	player.play(tablepanel.getFirstSong());
+    	player.play(tablepanel.getCurrentSong());
     }
     
     public void playNextSong() 
@@ -348,7 +371,12 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
     }
     public void reservePlayer()
     {
+    	System.out.println("PlayerPanel::reservePalyer()");
+    	activeIndicator.setBackground(Color.GREEN);
+    	activeIndicator.setForeground(Color.BLACK);
+    	activeIndicator.setText("Active");
     	controller.reservePlayer(this);
+    	tablepanel.setActive();
     }
     public void setCurrentTime(String str)
     {
@@ -362,25 +390,17 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
     {
     	player.stop();
     }
-	public void mouseClicked(MouseEvent arg0) 
-	{
-		// TODO Auto-generated method stub	
-	}
+	public void mouseClicked(MouseEvent arg0) {}
 	
 	@Override
-	public void mouseEntered(MouseEvent arg0) {
-		// TODO Auto-generated method stub	
-	}
+	public void mouseEntered(MouseEvent arg0) {}
 	
 	@Override
-	public void mouseExited(MouseEvent arg0) {
-		// TODO Auto-generated method stub
-		
-	}
+	public void mouseExited(MouseEvent arg0) {}
 	
 	@Override
 	public void mousePressed(MouseEvent arg0) {
-		// TODO Auto-generated method stub
+		
 		if(arg0.getSource() == progressSlide)
 		{
 			seeking = true;  // block the bpinterface from setting the slider value
@@ -398,6 +418,7 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 		{
 			if(largeArt != null)
 			{
+				popup.transferFocus();
 				JFrame temp = new JFrame();
 				temp.setLocation(200,150);
 				ImageIcon img = new ImageIcon(largeArt);
@@ -418,7 +439,7 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 	
 	@Override
 	public void mouseReleased(MouseEvent arg0) {
-		// TODO Auto-generated method stub
+		
 		if(arg0.getSource() == progressSlide)
 		{
 			int x = progressSlide.getValue();
@@ -429,7 +450,7 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 	
 	@Override
 	public void actionPerformed(ActionEvent arg0) {
-		// TODO Auto-generated method stub
+		
 		if (arg0.getSource() == skip_next)
 		{
 			playNextSong();
@@ -538,7 +559,7 @@ public class PlayerPanel extends JPanel implements ActionListener, MouseListener
 	public static String convertMicroSeconds(long lg)
 	{
 		//if (lg==0)return "err";
-		long org,min, seconds;
+		long min, seconds;
 		String seconds_str = "";
 		min = (int)(lg/60000000);
 		lg = lg - (min * 60000000);

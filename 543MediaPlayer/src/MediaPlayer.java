@@ -23,8 +23,8 @@ public class MediaPlayer implements BasicPlayerListener
 	BasicPlayer player;
 	String currentSong;
 	//static MediaPlayer mp;
-	static boolean playing = false;
-    static boolean stopped = true; 
+	boolean playing = false;
+    boolean stopped = true; 
 	int currentBytes,bitrate;
 	int tagsize;
 	String duration;
@@ -56,6 +56,7 @@ public class MediaPlayer implements BasicPlayerListener
 			stopped = false;
 			playing = true;
 			playerUI.setPlayButtonIcon(getClass().getResource("pause.png"));
+			playerUI.setActive(true);
 		}
 		else if (isPlaying())
 		{
@@ -72,6 +73,7 @@ public class MediaPlayer implements BasicPlayerListener
 		{
 			try {
 				control.resume();
+				playerUI.reservePlayer();
 				playing = true;
 				playerUI.setPlayButtonIcon(getClass().getResource("pause.png"));
 			} catch (BasicPlayerException e) {
@@ -90,7 +92,9 @@ public class MediaPlayer implements BasicPlayerListener
 	{
 		
 		if(filename == null)return;
+		playerUI.reservePlayer();
 		currentSong = filename;
+		//System.out.println("Now playing: " + currentSong);
 		playerUI.setCurrentSong(filename);
 		try
 		{			
@@ -133,10 +137,7 @@ public class MediaPlayer implements BasicPlayerListener
 	{
 		return stopped;
 	}
-	public void pauseOthers()
-	{
-		playerUI.reservePlayer();
-	}
+	
 	public String getCurrentSong()
 	{
 		return currentSong;
@@ -165,6 +166,12 @@ public class MediaPlayer implements BasicPlayerListener
 		stopped = true;
 		playerUI.setPlayButtonIcon(getClass().getResource("play.png"));
 		playerUI.setProgress(0);
+		
+	}
+	public void reset()
+	{
+		playerUI.reset();
+		currentSong = null;
 	}
 	public void seek(int x) 
 	{
@@ -198,17 +205,16 @@ public class MediaPlayer implements BasicPlayerListener
 		Mp3File mp3file = null;
 		try {
 			mp3file = new Mp3File(currentSong);
-			
 			bitrate = mp3file.getBitrate();
-			//tagsize = mp3file.getStartOffset()+1;
+			tagsize = (int) (mp3file.getLength() - (mp3file.getLengthInMilliseconds() / 8 * bitrate));
 			
 			if(mp3file.hasId3v2Tag() && playerUI != null) 
 			{
 				playerUI.setCurrentArt(mp3file.getId3v2Tag().getAlbumImage());
 				
 			}
-			//else
-				//playerUI.setCurrentArt(null);
+			else
+				playerUI.setCurrentArt(null);
 		} catch (UnsupportedTagException e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
@@ -219,18 +225,20 @@ public class MediaPlayer implements BasicPlayerListener
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
 		}
-		tagsize = (int) (mp3file.getLength() - (mp3file.getLengthInMilliseconds()/8*bitrate));
+		
 		String songInfo = "Now Playing:\n";
 		songInfo = songInfo + ("Title: " + properties.get("title"));
 		songInfo += ("\nAuthor: " + properties.get("author"));
-		//int lg = (Integer) properties.get("mp3.length.bytes");
+		
+		/* the casting here is the cause of the inaccuracy */
+		/* need to step back and rethink this part */
+		
 		int lg = (int) (mp3file.getLength() - tagsize);
 		long dur = (Long) properties.get("duration");
+		
 		playerUI.setProgressMax(lg-tagsize);
 		duration = convertMicroSeconds(dur);
-		//songInfo += ("\nDuration: " + duration);
 		songInfo += ("\nDuration: " + convertMilliSeconds(((mp3file.getLength()-tagsize)/bitrate*8)));
-		//songInfo += ("\nmydur2: " + ((mp3file.getLength()-tagsize)/bitrate*8));
 		playerUI.setPlayerText(songInfo);
 		playerUI.setCurrentTime(duration);
 		playerUI.setDuration((int) dur);
@@ -242,8 +250,8 @@ public class MediaPlayer implements BasicPlayerListener
 	// NOTE: this is called by the same thread (created when we call play(String)) 
 	// that is responsible for loading the buffer to play the song. If this function 
 	// takes to much time, the buffer will "run dry" before this thread can fill it 
-	// and cause a disruption in the playing of the song (the clicking sound). So 
-	// it is important for this function to do as little as possible!!!!!!!
+	// again and cause a disruption in the playing of the song (the clicking sound). 
+	// So it is important for this function to do as little as possible!!!!!!!
 	public void progress(int bytesread, long arg1, byte[] arg2, Map arg3) 
 	{
 		if(!playerUI.isSeeking())playerUI.setProgress(bytesread-tagsize);

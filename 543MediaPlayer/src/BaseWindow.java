@@ -14,12 +14,14 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 
 public class BaseWindow extends JFrame  implements MouseListener
 {
+	
 	PlayerPanel[] currentPlayers = new PlayerPanel[7];// limit 7 open players at one time
 	int windows = 0;
 	int playerNum = 0;
 	PlayerPanel player;
 	JFrame newWindow;
 	TablePanel table;
+	myTunes controller;
 	PlaylistPanel plPanel;
 	private JMenuBar menuBar;
     private JMenu menu;
@@ -31,6 +33,7 @@ public class BaseWindow extends JFrame  implements MouseListener
 	
     public BaseWindow(myTunes control)
 	{
+    	controller = control;
 		this.setResizable(false);
 		this.setLayout(null);
 		this.setTitle("myTunes by Mike and Daniel");
@@ -56,7 +59,6 @@ public class BaseWindow extends JFrame  implements MouseListener
         this.setJMenuBar(menuBar);
 		
         player = new PlayerPanel();
-        //player.setMainController(this);
         player.setActive(true);
         currentPlayers[playerNum] = player;
         playerNum = playerNum+1;
@@ -76,11 +78,12 @@ public class BaseWindow extends JFrame  implements MouseListener
 		this.add(table);
 		this.add(plPanel);
 		this.setVisible(true);
-		this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		//this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		this.addWindowListener(new WindowListener() {
-	        public void windowClosing(WindowEvent e) 
+	        
+			public void windowClosing(WindowEvent e) 
 	        {
-	            player.Stop();
+				controller.mainWindowClosing();
 	        }
 
 			@Override
@@ -153,6 +156,7 @@ public class BaseWindow extends JFrame  implements MouseListener
 		// TODO Auto-generated method stub
 		if(arg0.getSource() == exit)
 		{
+			
 			System.exit(0);
 		}
 		

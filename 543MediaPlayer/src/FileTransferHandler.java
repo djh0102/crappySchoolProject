@@ -1,3 +1,4 @@
+import java.awt.Component;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
 import java.awt.datatransfer.UnsupportedFlavorException;
@@ -5,6 +6,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+
 import javax.swing.JComponent;
 import javax.swing.JTable;
 import javax.swing.TransferHandler;
@@ -15,7 +17,12 @@ class FileTransferHandler extends TransferHandler
  
 	TablePanel gui;
 	List<File> filenames;
-	JComponent source;
+	String to_name = "";
+	String from_name = "";
+	DataFlavor myCustomFlavor = new DataFlavor(String[].class, "String Array");
+	
+	/* DataFlavor of an external drop */
+	String external = "java.awt.datatransfer.DataFlavor[mimetype=application/x-java-url;representationclass=java.net.URL]";
 	
 	public FileTransferHandler(TablePanel tp)
 	{
@@ -24,7 +31,6 @@ class FileTransferHandler extends TransferHandler
 	
 	public int getSourceActions(JComponent c) 
 	{
-		source = c;
 	    return COPY;
 	}
 
@@ -32,25 +38,27 @@ class FileTransferHandler extends TransferHandler
 	{
 	    
 		JTable table = (JTable) c;
-		DefaultTableModel model = (DefaultTableModel) table.getModel();
-		filenames = new ArrayList<File>();
+		
 		int[] rows = table.getSelectedRows();
-		//System.out.println("Need to create a transferable containing files:");
+		from_name = table.getName();
+		System.out.println(":::: Drag gesture initiated from PlayList::::" + from_name + "\nAttempting to drop files:");
+		DefaultTableModel model = (DefaultTableModel) table.getModel();
+		filenames = new ArrayList();
+			
 		for(int i = 0; i < rows.length; i++)
 		{
-			//System.out.println((String)model.getValueAt(rows[i],model.getColumnCount()-1));
+			System.out.println((String)model.getValueAt(rows[i],model.getColumnCount()-1));
 			String filename = (String)model.getValueAt(rows[i],model.getColumnCount()-1);
 			filenames.add(new File(filename));
+			//selectedData[i] = (String)model.getValueAt(rows[i-1],model.getColumnCount()-1);
 		}
-		Transferable t = new FileTransferable(filenames);
-		
+		Transferable t = new FileTransferable(filenames,c.getName());
 		return t;
 	}
 
-	protected void exportDone(JComponent c, Transferable t, int action) {
-	    if (action == MOVE) {
-	       // c.removeSelection();
-	    }
+	protected void exportDone(JComponent c, Transferable t, int action) 
+	{
+		/* no clean up required */ 
 	}
 
     public boolean canImport(TransferSupport supp) 
@@ -66,44 +74,62 @@ class FileTransferHandler extends TransferHandler
  
     public boolean importData(TransferSupport supp) 
     {
-    	System.out.print("FileDropHandler::importData() ->");
-        
-        if (!canImport(supp)) {
+    	/* do not continue if the drop is not of a supported flavor */
+        if (!canImport(supp)) 
+        {
+        	System.out.println("Drop type ::" + supp.getDataFlavors()[0] + " not supported");
             return false;
         }
         
-        /* don't allow a component to drag and drop on itself */
-        if(source == supp.getComponent())return false;
+        Component c =  supp.getComponent();
+        
+        /* get the name of the destination */
+        to_name = c.getName();
         
         /* fetch the Transferable  */
-        /* the transferable is an object of FileTransferable defined in FileTransferable.java */
         Transferable t = supp.getTransferable();
+        
+        /* get the flavor of the drop */
+        DataFlavor[] d = supp.getDataFlavors();
         
         try {
             /* fetch the data from the Transferable */
-            Object data = t.getTransferData(DataFlavor.javaFileListFlavor);
- 
-            /* data of type javaFileListFlavor is a list of files */
-            java.util.List<File> fileList = (java.util.List<File>)data;
- 
-            /* loop through the files in the file list */
-            /* for each file call addToList in the gui */
-            for(int i = 0; i < fileList.size(); i++)
+            filenames = (List<File>)t.getTransferData(DataFlavor.javaFileListFlavor);
+           
+            /* if NOT an EXTERNAL Drop */
+            if(!external.equals(d[0].toString()))
             {
-            	File file = fileList.get(i);
-            	String str = file.getAbsolutePath();
-            	gui.addToList(str);
+            	
+            	//Object obj = (Object)t.getTransferData(DataFlavor.stringFlavor);
+            	from_name = (String) t.getTransferData(DataFlavor.stringFlavor);
             }
-                
-
+            else
+            	from_name = "----external source-----";
+            
+       
+            //System.out.println("made it to line 122");
+            if(to_name.equals(from_name))
+    		{
+    			System.err.println("ERROR::PlayList::"+to_name +":: trying to drop on PlayList::" + from_name + ":::import aborted!!!" );
+    			//from_name = "";
+    			return false;
+    		}
+            else
+            {
+            	System.out.println("Drag from Playlist::" + from_name + " to PlayList::" + to_name + " accepted!!");
+            }
+    		for(int i = 0; i < filenames.size(); i++)
+            {
+            	gui.addToList(filenames.get(i).getAbsolutePath());
+            }
+    	    
         } catch (UnsupportedFlavorException e) {
             return false;
         } catch (IOException e) {
             return false;
         }
- 
+        
         return true;
     }
     
-    	  
 }

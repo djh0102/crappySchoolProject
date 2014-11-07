@@ -180,9 +180,12 @@ public class PlaylistPanel extends JPanel implements MouseListener
 			str = JOptionPane.showInputDialog("Enter a name for new Playlist");
 		}
 		
-		database.addPlaylist(str);
-		buildPlaylistTree();
-		table.setCurrentTableView(str);
+		if(str.length() > 0 && isValid(str))
+		{
+			database.addPlaylist(str);
+			buildPlaylistTree();
+			table.setCurrentTableView(str);
+		}
 		
 	}
 	public String getSelectedNode()
@@ -228,6 +231,35 @@ public class PlaylistPanel extends JPanel implements MouseListener
 		jf.setVisible(true);
 
 	}*/
+	
+	public boolean isValid(String str)
+	{
+		boolean valid = false;
+		for(int i = 0; i < str.length(); i++)
+		{
+			if((isAlpha(str.charAt(i)) || (isDigit(str.charAt(i)))))
+			{
+				valid = true;
+			}
+		}
+		
+		return valid;
+	}
+	private boolean isAlpha(char a)
+	{
+		boolean type = false;
+		if((a >= 'a') && (a <= 'z') )type = true;
+		else if((a >= 'A') && (a <= 'Z') ) type = true;
+		
+		return type;
+	}
+	private boolean isDigit(char a)
+	{
+		boolean type = false;
+		if((a >= '0') && (a <= '9') )type = true;
+		
+		return type;
+	}
 	@Override
 	public void paintComponent(Graphics g) 
     {

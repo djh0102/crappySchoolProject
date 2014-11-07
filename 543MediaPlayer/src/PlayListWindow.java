@@ -13,7 +13,7 @@ import javax.swing.JSeparator;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
 
-public class PlayListWindow extends JFrame implements MouseListener 
+public class PlayListWindow extends JFrame implements MouseListener, DatabaseListener
 {
 	int windows = 0;
 	int playerNum = 0;
@@ -56,25 +56,17 @@ public class PlayListWindow extends JFrame implements MouseListener
         newWindow.setJMenuBar(menuBar);
 		
         player = new PlayerPanel();
-        //player.setMainController(this);
-        //currentPlayers[playerNum] = player;
         playerNum = playerNum+1;
-        //setActivePlayer(player);
         if(windows > 2)table.setCurrentTableView("Library");
 		table = new TablePanel(str);
+		MyTunesDB.getDataBaseObject().addDataBaseListener(this);
 		player.setTablePTR(table);
 		table.setMediaPlayer(player.getMediaPlayer());
-		//table.setCurrentTableView(str);
 		player.setTablePTR(table);
 		
 		newWindow.setSize(900, 800);
-		//player.setLocation(160,0);
-		//table.setLocation(160,200);
-		//plPanel.setLocation(0, 0);
 		newWindow.add(player,BorderLayout.CENTER);
 		newWindow.add(table,BorderLayout.SOUTH);
-		//newWindow.add(table);
-		//newWindow.add(plPanel);
 		newWindow.setVisible(true);
 		
 		newWindow.addWindowListener(new WindowListener() {
@@ -173,6 +165,25 @@ public class PlayListWindow extends JFrame implements MouseListener
 	@Override
 	public void mouseReleased(MouseEvent arg0) {
 		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void dataBaseDataChanged(DataBaseEvent arg0) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void playlistDeleted(PlaylistEvent arg0) {
+		// TODO Auto-generated method stub
+		System.out.println("PlaylistWindow::playlistDeleted() == " + arg0.getPlaylistName());
+		if(table.getCurrentTableView().equals(arg0.getPlaylistName()))
+		{
+			System.out.println("Oh, that's me, goodbye!!!");
+			player.shutUP();
+			newWindow.dispose();
+		}
 		
 	}
 

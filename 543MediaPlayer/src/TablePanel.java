@@ -9,6 +9,7 @@ import java.awt.dnd.DragGestureEvent;
 import java.awt.dnd.DragGestureListener;
 import java.awt.dnd.DragSource;
 import java.awt.dnd.DropTargetDropEvent;
+import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.io.File;
@@ -33,8 +34,9 @@ import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellRenderer;
 
 
-public class TablePanel extends JPanel implements MouseListener 
+public class TablePanel extends JPanel implements MouseListener, DatabaseListener
 {
+	//static int counter = 0;
 	JTable table;
 	DefaultTableModel model;
 	JScrollPane scroller;
@@ -42,14 +44,15 @@ public class TablePanel extends JPanel implements MouseListener
 	int currentIndex,maxIndex;
 	FileTransferHandler MyTransferHandler;
 	MediaPlayer mplayer;
-	//String currentSong;
 	String currentTableView;
 	JPopupMenu popup;
 	JMenuItem popOpen;
 	JMenuItem popDelete;
 	JMenu addToPlaylist;
-	
-	
+	boolean active = false;
+	String orderby = "Title";
+	boolean order = true;
+	int lastClickedColumn;
 	
 	public TablePanel(String str)
 	{
@@ -62,7 +65,9 @@ public class TablePanel extends JPanel implements MouseListener
 		//mplayer=MediaPlayer.getMediaPlayerObj();
 		
 		database = MyTunesDB.getDataBaseObject();
-		model = new DefaultTableModel(database.getDisplaySet("Library"), database.getColumnNames()) 
+		database.addDataBaseListener(this);
+		
+		model = new DefaultTableModel(database.getDisplaySet("Library",orderby,order), database.getColumnNames()) 
     	{
     		@Override
     	    public boolean isCellEditable(int row, int column) 
@@ -84,8 +89,8 @@ public class TablePanel extends JPanel implements MouseListener
         		  } 
         		  else if (isCellSelected(Index_row, Index_col))  
         		  {
-        			  comp.setBackground(Color.RED);
-        			  comp.setForeground(Color.WHITE);
+        			  //comp.setBackground(Color.RED);
+        			  //comp.setForeground(Color.WHITE);
         		  }
         		  else 
         		  {
@@ -93,11 +98,24 @@ public class TablePanel extends JPanel implements MouseListener
         			  comp.setForeground(Color.black);
         		  }
         		  return comp;
-        	  	}
+        	  }
+        	  
         	  
         };
+        table.getTableHeader().addMouseListener(new MouseAdapter() {
+  	      @Override
+  	      public void mouseClicked(MouseEvent mouseEvent) {
+  	        int index = table.convertColumnIndexToModel(table.columnAtPoint(mouseEvent.getPoint()));
+  	        if (index >= 0) {
+  	          System.out.println("Clicked on column " + index);
+  	          setorderBy(index);
+  	        }
+  	      };
+  	    });
+        table.setSelectionBackground(Color.RED);
+        table.setSelectionForeground(Color.WHITE);
+        table.setName(str);
         database.setUI(this);
-        //table.getColumnModel().getColumn(5).setPreferredWidth(0);
         table.addMouseListener(this);
         table.setDropMode(DropMode.USE_SELECTION);
         table.setDragEnabled(true);
@@ -124,7 +142,7 @@ public class TablePanel extends JPanel implements MouseListener
         table.setFillsViewportHeight(true);
         updateUI(currentTableView);
         this.add(scroller);	
-        //table.removeColumn(table.getColumnModel().getColumn(5));
+        
 	}
 	public JTable getTableObj()
 	{
@@ -134,6 +152,7 @@ public class TablePanel extends JPanel implements MouseListener
     {
     	mplayer = mp;
     }
+	
 	public void scrollToSelected()
 	{
 		Rectangle cellRect = table.getCellRect(table.getSelectedRow(), 0, false);
@@ -142,32 +161,45 @@ public class TablePanel extends JPanel implements MouseListener
 			table.scrollRectToVisible(cellRect);
 		}
 	}
-	
+	public void setActive()
+	{
+		table.setSelectionBackground(Color.GREEN);
+		table.setSelectionForeground(Color.BLACK);
+	}
+	public void setInactive()
+	{
+		table.setSelectionBackground(Color.RED);
+		table.setSelectionForeground(Color.WHITE);
+	}
 	public boolean addToList(String fileName)
 	{
 		boolean success = false;
     	if(fileName.endsWith("mp3"))
     	{
-    		success = database.insertEntry("Library", fileName);
+    		//success = database.insertEntry("Library", fileName);
     		if(!currentTableView.equals("Library"))database.insertIntoPlaylist(fileName, currentTableView);
+    		else
+    			database.insertEntry("library", fileName);
+    		
     		currentIndex = database.getIndexOf(fileName);
     		maxIndex = table.getRowCount();
     	}
-    	updateUI(currentTableView);
+    	
+    	//updateUI(currentTableView); // handled by 
     	return success;
 	}
 	
 	public void deleteRows(int[] rows)
     {
-    	for(int i = rows.length; i > 0; i--)
+    	for(int i = rows.length-1; i >= 0; i--)
     	{
-    		String fileName = (String)((String)model.getValueAt(table.getSelectedRow(), model.getColumnCount()-1));
+    		String fileName = (String)((String)model.getValueAt(rows[i], model.getColumnCount()-1));
     		System.out.println("deleting: " + fileName);
     		database.deleteEntry(currentTableView, fileName);
     	}
     	
     	maxIndex = table.getRowCount();
-    	updateUI(currentTableView);
+    	//updateUI(currentTableView);
     }
 	
 	public int getIndexOf(String str)
@@ -182,10 +214,20 @@ public class TablePanel extends JPanel implements MouseListener
     	return -1;
     }
 	
-	public String getFirstSong()
+	public String getCurrentSong()
 	{
-		table.setRowSelectionInterval(0, 0);
-		return (String)model.getValueAt(0, model.getColumnCount()-1);
+		if(table.getSelectedRow() == -1)
+		{
+			table.setRowSelectionInterval(0, 0);
+			currentIndex = 0;
+		}
+		else 
+		{
+			currentIndex = table.getSelectedRow();
+			
+		}
+		return (String)model.getValueAt(currentIndex, model.getColumnCount()-1);
+		
 	}
 	
 	public String getNextSong()
@@ -200,7 +242,7 @@ public class TablePanel extends JPanel implements MouseListener
 	public String getPreviousSong()
 	{
 		maxIndex = table.getRowCount();
-		//System.out.println("maxIndex = " + maxIndex + " and currentIndex == " + currentIndex);
+		System.out.println("maxIndex = " + maxIndex + " and currentIndex == " + currentIndex);
 	    currentIndex = (currentIndex == 0) ? maxIndex-1:currentIndex-1;
 		table.setRowSelectionInterval(currentIndex, currentIndex);
 		scrollToSelected();
@@ -218,13 +260,59 @@ public class TablePanel extends JPanel implements MouseListener
 		{
 			currentIndex = tmp;
 			table.setRowSelectionInterval(currentIndex, currentIndex);
-			//table.setRowSelectionInterval(currentIndex, currentIndex);
+			
 		}
 		else 
 			currentIndex = 0;
 		
 		
 	}
+	/* when the user clicks on a column, this function is called */
+	/* the pass parameter is the column number that was clicked on */
+	public void setorderBy(int column)
+	{
+		
+		
+		if(lastClickedColumn == column)
+		{
+			order = !order;
+		}
+		lastClickedColumn = column;
+		switch(column)
+		{
+			case 0:
+				orderby = "Title";
+				break;
+			case 1:
+				orderby = "Artist";
+				break;
+			case 2:
+				orderby = "Album";
+				break;
+			case 3:
+				orderby = "Genre";
+				break;
+			case 4:
+				orderby = "Duration";
+				break;
+			case 5:
+				orderby = "Release";
+				break;
+			case 6:
+				orderby = "Comment";
+				break;
+			default:
+				orderby = "Title";
+		}
+		updateUI(currentTableView);
+	}
+	
+	public String getCurrentTableView()
+	{
+		return currentTableView;
+	}
+	
+	
 	
 	private void buildPopUp(MouseEvent arg0)
 	{
@@ -260,15 +348,14 @@ public class TablePanel extends JPanel implements MouseListener
 		{
 			if(arg0.getSource() == table)
 			{
-				arg0.consume();
 				if(mplayer.isPlaying())
 					mplayer.stop();
 					
+				//mplayer.pauseOthers();
 				currentIndex = table.getSelectedRow();
-				//mplayer.play((String)table.getValueAt(currentIndex, 5));
-				mplayer.pauseOthers();
 				mplayer.play((String)model.getValueAt(currentIndex, model.getColumnCount()-1));
-				//currentSong=(String)model.getValueAt(currentIndex, model.getColumnCount()-1);
+				currentIndex = table.getSelectedRow();
+				arg0.consume();
 			}
 		}
 		
@@ -353,9 +440,11 @@ public class TablePanel extends JPanel implements MouseListener
     	
     	if (model != null)
     	{
-    		System.out.println(this.getClass().toString()+"::updateUI(String): arg0 = " + tableName+"\n\n");
+    		table.setName(tableName);
+    		System.out.println("------- TablePanel UpDate Initiated ---------");
+    		//System.out.println(this.getClass().toString()+"::updateUI(String): arg0 = " + tableName);
     		//JTable tm = tableUI.getTableObj();
-    		model.setDataVector(database.getDisplaySet(tableName), database.getColumnNames());
+    		model.setDataVector(database.getDisplaySet(tableName,orderby,order), database.getColumnNames());
     		table.removeColumn(table.getColumnModel().getColumn(table.getColumnModel().getColumnIndex("FileName")));
     		table.removeColumn(table.getColumnModel().getColumn(table.getColumnModel().getColumnIndex("Duration")));
     		table.getColumnModel().getColumn(table.getColumnModel().getColumnIndex("Year")).setMaxWidth(45);
@@ -365,6 +454,20 @@ public class TablePanel extends JPanel implements MouseListener
     		//tm.moveColumn(column, targetColumn); // actually, just fix the db
     	}
     	maxIndex = table.getRowCount();
+    	int tmp = -1;
+    	/* both inserts and deletes can change where the current song is in list */
+    	
+    	/* if media player is not null && if media player has a song opened, then find it in table */
+    	if(mplayer!=null && mplayer.getCurrentSong() != null)
+    	{
+    		tmp = getIndexOf(mplayer.getCurrentSong());
+    	    if(tmp != -1)currentIndex = tmp;	
+    	}	
+    	/*[ tmp != -1 ] indicates that song was found in list, set the currentIndex */
+    	//currentIndex = (tmp == -1) ? 0:tmp;
+    	System.out.println(this.getClass().toString()+":: updateUI("+tableName+"):: currentIndex = " + currentIndex + ", maxIndex = "+ maxIndex);
+    	/* highlight the currentIndex */
+    	table.setRowSelectionInterval(currentIndex, currentIndex);
     }
 	/*public static void main(String[] args) {
 		// TODO Auto-generated method stub
@@ -397,6 +500,33 @@ public class TablePanel extends JPanel implements MouseListener
 		jf.setSize(tp.getSize());
 		jf.setVisible(true);
 	}*/
+	@Override
+	public void dataBaseDataChanged(DataBaseEvent arg0) {
+		
+		if(arg0.getOperation().equals("delete"))
+		{
+			String name = arg0.getFileName();
+			String name1 = mplayer.getCurrentSong();
+			System.out.println("databasechanged:: name = " + name + " and name1 = " + name1);
+			System.out.println("currentTableview == " + currentTableView);
+			if(name1 != null){
+				if(name1.equals(name))
+				{
+					System.out.println("currentTableview == " + currentTableView);
+					mplayer.stop();
+					mplayer.reset();
+				}
+			}
+		}
+		
+		updateUI(currentTableView);
+		
+	}
+	@Override
+	public void playlistDeleted(PlaylistEvent arg0) {
+		// TODO Auto-generated method stub
+		
+	}
 
 
 }

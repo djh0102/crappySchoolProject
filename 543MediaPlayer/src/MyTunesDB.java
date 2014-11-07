@@ -5,6 +5,8 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+
 import javax.swing.table.DefaultTableModel;
 
 import com.mpatric.mp3agic.ID3v1;
@@ -33,11 +35,14 @@ public class MyTunesDB
 	private String[] columnNames = new String [] {"Title", "Artist", "Album", "Genre","Time","Year","Comment","Duration","FileName"};
 	Object[] rowData;
 	private static MyTunesDB mdb;
+	//String orderby = "Title";
+	ArrayList<DatabaseListener> listeners;
     
     // When the object is created, the embedded driver is loaded and a connection is opened
     // Constructor is private so we can control if/when it's called
     private MyTunesDB()
     {
+    	listeners = new ArrayList<DatabaseListener>();
     	try
     	{
     		Class.forName("org.apache.derby.jdbc.EmbeddedDriver").newInstance();
@@ -159,16 +164,16 @@ public class MyTunesDB
     public void deleteEntry(String tableName,String fileName)
     {
     	System.out.println(this.getClass().toString()+"::deleteEntry(String,String)");
-    	fileName = makeSQLCompatible(fileName);
+    	String tmp = makeSQLCompatible(fileName);
     	try
     	{
     		stmt=conn.createStatement();
     		//System.out.println("delete from "+tableName + " where filePath = '" + fileName+"'");
-    		if(!tableName.equals("Library"))stmt.execute("delete from playlist where filePath = '" + fileName+"' AND name ='" + tableName +"'");
+    		if(!tableName.equals("Library"))stmt.execute("delete from playlist where filePath = '" + tmp+"' AND name ='" + tableName +"'");
     		else
     		{
-    			stmt.execute("delete from playlist where filePath = '" + fileName + "'");
-    			stmt.execute("delete from "+tableName + " where filePath = '" + fileName+"'");
+    			stmt.execute("delete from playlist where filePath = '" + tmp + "'");
+    			stmt.execute("delete from "+tableName + " where filePath = '" + tmp+"'");
     		}
     		stmt.close();
     		
@@ -180,6 +185,7 @@ public class MyTunesDB
     		e.printStackTrace();
     		return;
     	}
+    	fireDataBaseEvent(fileName,"delete");
     }
     // this function creates the playlist table
     public void createPlaylistTable()
@@ -230,9 +236,10 @@ public class MyTunesDB
     	return names;
     }
     // this function gets the row data of the table
-    public Object[][] getDisplaySet(String name)
+    public Object[][] getDisplaySet(String name, String orderby, boolean des)
     {
-    	System.out.println("name.equals(\"Library\") == "+ name.equals("Library"));
+    	String order = (des ==true)?"Desc":"Asc";
+    	System.out.println(this.getClass().toString()+ "::getDisplaySet(" + name + ", " + orderby + ", "+ order+ ")");
     	int rows;
     	int columns;
     	int i = 0;
@@ -241,11 +248,11 @@ public class MyTunesDB
     	try {
 			//stmt = conn.createStatement();
     		stmt =conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE);
-			if(name.equals("Library"))results = stmt.executeQuery("select * from " + name);
+			if(name.equals("Library"))results = stmt.executeQuery("select * from " + name + " ORDER BY " + orderby + " " + order);
+			
 			else
 			{
-				results = stmt.executeQuery("select * from library inner join Playlist on library.filePath = Playlist.filePath where Playlist.name ='" + name+"'");
-				//results = stmt.executeQuery("select * from library, Playlist where library.filePath = Playlist.filePath AND Playlist.name = "+name);
+				results = stmt.executeQuery("select * from library inner join Playlist on library.filePath = Playlist.filePath where Playlist.name ='" + name+"'"+ " ORDER BY " + orderby + " " + order);
 			}
 			results.last();         //move pointer to last row
 			rows = results.getRow();//row number of last row
@@ -278,7 +285,7 @@ public class MyTunesDB
     }
     public void addPlaylist(String str)
     {
-    	System.out.println(this.getClass().toString()+"addPlaylist("+str+")");
+    	System.out.println(this.getClass().toString()+"::addPlaylist("+str+")");
     	try {
 			stmt = conn.createStatement();
 			stmt.execute("insert into PlaylistNames values('" + str + "')");
@@ -289,7 +296,7 @@ public class MyTunesDB
     }
     public void deletePlaylist(String str)
     {
-    	System.out.println(this.getClass().toString()+"deletePlaylist("+str+")");
+    	System.out.println(this.getClass().toString()+"::deletePlaylist("+str+")");
     	try {
 			stmt = conn.createStatement();
 			stmt.execute("delete from Playlist where name = '" + str + "'");
@@ -298,25 +305,27 @@ public class MyTunesDB
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+    	firePlaylistBaseEvent(str);
     }
     public void insertIntoPlaylist(String fileName,String playlistName)
     {
     	try {
-			stmt = conn.createStatement();
 			insertEntry("library",fileName);
+			stmt = conn.createStatement();
 			stmt.execute("insert into playlist values( '" + makeSQLCompatible(fileName) +"', '" + makeSQLCompatible(playlistName) + "')");
 			stmt.close();
 		} catch (SQLException e) {
 			
 			e.printStackTrace();
 		}
+    	fireDataBaseEvent(fileName,"insert");
     }
     // inserts a song into list
     // returns true if song is added to list, or if song is already in list
     // returns false if song could not be added to list
     public boolean insertEntry(String name, String file)
     {
-    	System.out.println(this.getClass().toString()+"::insertEntry(String,String)");
+    	System.out.println(this.getClass().toString()+"::insertEntry("+name+","+file+")");
     	fileName = makeSQLCompatible(file);
     	
     	// if file already in list, stop
@@ -435,13 +444,33 @@ public class MyTunesDB
     {
     	return columnNames;
     }
-    
+    private void fireDataBaseEvent(String filename, String op)
+    {
+    	if (listeners.size() == 0)return;
+    	
+    	for(int i = 0; i < listeners.size(); i++)
+    	{
+    		listeners.get(i).dataBaseDataChanged(new DataBaseEvent(this,filename,op));
+    	}
+    }
+    private void firePlaylistBaseEvent(String playlistName)
+    {
+    	if (listeners.size() == 0)return;
+    	
+    	for(int i = 0; i < listeners.size(); i++)
+    	{
+    		listeners.get(i).playlistDeleted(new PlaylistEvent(this,playlistName));
+    	}
+    }
     // this is how we link this database obj to the jTable in the gui.
     // any changes we make to the model are immediately reflected in the jTable
-    
+    public void addDataBaseListener(DatabaseListener listener)
+    {
+    	listeners.add(listener);
+    }
     public void setUI(TablePanel tp)
     {
-    	model = (DefaultTableModel) tp.getTableObj().getModel();
+    	//model = (DefaultTableModel) tp.getTableObj().getModel();
     	//tableUI = tp;
     }
     public static String convertMilliSeconds(long lg)

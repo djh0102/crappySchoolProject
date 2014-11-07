@@ -46,6 +46,14 @@ class myTunes extends JFrame
 			}
 		}
 	}
+	public void mainWindowClosing()
+	{
+		for(int i =0; i < playerNum; i++)
+		{
+			currentPlayers[i].Stop();
+			System.exit(0);
+		}
+	}
 
 	
 
