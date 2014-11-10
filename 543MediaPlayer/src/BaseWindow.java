@@ -29,6 +29,7 @@ public class BaseWindow extends JFrame  implements MouseListener
     private JMenuItem static_Delete;
     private JMenuItem addSong;
     private JMenuItem exit;
+    private JMenuItem addPlayList;
     //private JMenuItem close;
 	
     public BaseWindow(myTunes control)
@@ -38,6 +39,7 @@ public class BaseWindow extends JFrame  implements MouseListener
 		this.setLayout(null);
 		this.setTitle("myTunes by Mike and Daniel");
 		menuBar = new JMenuBar();
+		/* 'File' option on the menu bar */
         menu = new JMenu("File");
         static_Open = new JMenuItem("Open");
         static_Open.addMouseListener(this);
@@ -56,6 +58,14 @@ public class BaseWindow extends JFrame  implements MouseListener
         menu.add(new JSeparator());
         menu.add(exit);
         menuBar.add(menu);
+        
+        /* 'PlayList' option on the menu bar */
+        menu = new JMenu("Playlist");
+        addPlayList = new JMenuItem("New PlayList");
+        addPlayList.addMouseListener(this);
+        menu.add(addPlayList);
+        menuBar.add(menu);
+        
         this.setJMenuBar(menuBar);
 		
         player = new PlayerPanel();
@@ -176,10 +186,15 @@ public class BaseWindow extends JFrame  implements MouseListener
 		    		table.addToList(chosenFile);
 		    }
 		}
-		if(arg0.getSource() == static_Delete)
+		else if(arg0.getSource() == static_Delete)
 		{
 			table.deleteRows(table.getTableObj().getSelectedRows());
 		}
+		else if (arg0.getSource() == addPlayList)
+		{
+			plPanel.addPlayList(null); /* arg is null, addPlayList will ask user for name */
+		}
+		
 	}
 
 	@Override

@@ -32,6 +32,7 @@ public class PlaylistPanel extends JPanel implements MouseListener
 	TablePanel table;
 	MyTunesDB database;
 	myTunes control;
+	String lastListAdded = null;
 	public PlaylistPanel() 
 	{
 		jpop = new JPopupMenu();
@@ -161,13 +162,22 @@ public class PlaylistPanel extends JPanel implements MouseListener
 	
 	public void deletePlaylist()
 	{
+		String name = null;
 		int x = JOptionPane.showConfirmDialog(null, "Are you sure?");
 		//System.out.println("Here is x::" + x);
 		if(x == 0)
 		{
-			database.deletePlaylist(getSelectedNode());
+			name = getSelectedNode();
+			database.deletePlaylist(name);
 			buildPlaylistTree();
+			if(table.getCurrentTableView().equals(name))
+			{
+				table.setCurrentTableView("Library");
+				playList.clearSelection();
+				library.setSelectionInterval(0, 0);
+			}
 		}
+		
 	}
 	public void setMainController(myTunes mt)
 	{
@@ -178,11 +188,13 @@ public class PlaylistPanel extends JPanel implements MouseListener
 		if(str == null)
 		{
 			str = JOptionPane.showInputDialog("Enter a name for new Playlist");
+			if(str == null)return;
 		}
 		
 		if(str.length() > 0 && isValid(str))
 		{
 			database.addPlaylist(str);
+			lastListAdded = str;
 			buildPlaylistTree();
 			table.setCurrentTableView(str);
 		}
@@ -201,7 +213,7 @@ public class PlaylistPanel extends JPanel implements MouseListener
 	}
 	public void buildPlaylistTree()
 	{
-	
+		int index = 1;
 		Object[] names = database.getPlaylistNames();
 		DefaultTreeModel model = (DefaultTreeModel)playList.getModel();
 		MutableTreeNode root = (MutableTreeNode) model.getRoot();
@@ -212,9 +224,12 @@ public class PlaylistPanel extends JPanel implements MouseListener
 		
 		for(int i = 0; i < names.length; i++)
 		{
+			String tmp = (String)names[i];
+			if(tmp.equals(lastListAdded))index = i+1;
 			model.insertNodeInto((new DefaultMutableTreeNode((String)names[i])), root, root.getChildCount());
 		}
 		playList.expandPath(new TreePath(playList.getModel().getRoot()));
+		playList.setSelectionInterval(index, index);
 	}
 	public void showPopUp()
 	{

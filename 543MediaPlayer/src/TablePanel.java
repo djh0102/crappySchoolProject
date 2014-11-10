@@ -51,7 +51,7 @@ public class TablePanel extends JPanel implements MouseListener, DatabaseListene
 	JMenu addToPlaylist;
 	boolean active = false;
 	String orderby = "Title";
-	boolean order = true;
+	boolean order = false;
 	int lastClickedColumn;
 	
 	public TablePanel(String str)
@@ -272,12 +272,14 @@ public class TablePanel extends JPanel implements MouseListener, DatabaseListene
 	public void setorderBy(int column)
 	{
 		
-		
+		/* if the users clicks on the same column again, flip the order */
 		if(lastClickedColumn == column)
 		{
 			order = !order;
 		}
+		
 		lastClickedColumn = column;
+		
 		switch(column)
 		{
 			case 0:
@@ -442,21 +444,25 @@ public class TablePanel extends JPanel implements MouseListener, DatabaseListene
     	{
     		table.setName(tableName);
     		System.out.println("------- TablePanel UpDate Initiated ---------");
-    		//System.out.println(this.getClass().toString()+"::updateUI(String): arg0 = " + tableName);
-    		//JTable tm = tableUI.getTableObj();
+    		
+    		/* get the data from the database and load it into the table model */
+    		/* when data is loaded into the data model, it's instantly visible in the table */
     		model.setDataVector(database.getDisplaySet(tableName,orderby,order), database.getColumnNames());
+    		
+    		/* Effectively, hide the columns "FileName", "Duration" by removing them from the table but not the model */
     		table.removeColumn(table.getColumnModel().getColumn(table.getColumnModel().getColumnIndex("FileName")));
     		table.removeColumn(table.getColumnModel().getColumn(table.getColumnModel().getColumnIndex("Duration")));
+    		
+    		/* set the desired column sizes */
     		table.getColumnModel().getColumn(table.getColumnModel().getColumnIndex("Year")).setMaxWidth(45);
     		table.getColumnModel().getColumn(table.getColumnModel().getColumnIndex("Time")).setMaxWidth(40);
     		table.getColumnModel().getColumn(table.getColumnModel().getColumnIndex("Genre")).setMaxWidth(60);
     		
-    		//tm.moveColumn(column, targetColumn); // actually, just fix the db
     	}
     	maxIndex = table.getRowCount();
     	int tmp = -1;
-    	/* both inserts and deletes can change where the current song is in list */
     	
+    	/* inserts, deletes and sort can change where the current song is in list */
     	/* if media player is not null && if media player has a song opened, then find it in table */
     	if(mplayer!=null && mplayer.getCurrentSong() != null)
     	{
@@ -464,10 +470,10 @@ public class TablePanel extends JPanel implements MouseListener, DatabaseListene
     	    if(tmp != -1)currentIndex = tmp;	
     	}	
     	/*[ tmp != -1 ] indicates that song was found in list, set the currentIndex */
-    	//currentIndex = (tmp == -1) ? 0:tmp;
+   
     	System.out.println(this.getClass().toString()+":: updateUI("+tableName+"):: currentIndex = " + currentIndex + ", maxIndex = "+ maxIndex);
     	/* highlight the currentIndex */
-    	table.setRowSelectionInterval(currentIndex, currentIndex);
+    	//if(!(maxIndex==0))table.setRowSelectionInterval(currentIndex, currentIndex);
     }
 	/*public static void main(String[] args) {
 		// TODO Auto-generated method stub
