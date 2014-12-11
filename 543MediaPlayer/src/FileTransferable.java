@@ -21,10 +21,14 @@ public class FileTransferable implements Transferable {
    	   	
    	   	public synchronized Object getTransferData(DataFlavor flavor) throws UnsupportedFlavorException, IOException 
    	   	{
-   	   		//System.out.println("FileTransferable::getTransferData(" + flavor + ")");
+   	   		System.out.println("FileTransferable::getTransferData(" + flavor + ")");
    	   		if(!isDataFlavorSupported(flavor))
    	   			throw new UnsupportedFlavorException(flavor);
-   	   		if(flavor.equals(DataFlavor.javaFileListFlavor))return files;
+   	   		if(flavor.equals(DataFlavor.javaFileListFlavor))
+   	   		{
+   	   			System.out.println("FileTransferable::getTransferData()");
+   	   			return files;
+   	   		}
    	   		else
    	   		{
    	   			if(source == null)return "external";
@@ -48,6 +52,7 @@ public class FileTransferable implements Transferable {
    	    	boolean supported = false;
    	    	if (flavor.equals(DataFlavor.javaFileListFlavor) || flavor.equals(DataFlavor.stringFlavor))supported = true;
    	    	//System.out.println("supported:: " + supported);
+   	    	//else if(flavor.equals(DataFlavor.)
            return supported;
    	    }
    }

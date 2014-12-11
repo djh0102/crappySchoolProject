@@ -29,6 +29,7 @@ public class PlaylistPanel extends JPanel implements MouseListener
 	JMenuItem createNew;
 	JMenuItem deleteList;
 	JMenuItem newWindow;
+	JMenuItem renamePlaylist;
 	TablePanel table;
 	MyTunesDB database;
 	myTunes control;
@@ -115,6 +116,7 @@ public class PlaylistPanel extends JPanel implements MouseListener
 			}
 			
 			});
+		
 		playList.addMouseListener(new MouseListener(){
 
 			@Override
@@ -158,6 +160,8 @@ public class PlaylistPanel extends JPanel implements MouseListener
 		this.add(jsp);
 		this.add(jsp1);
 		buildPlaylistTree();
+		library.setSelectionInterval(0, 0);
+		playList.clearSelection();
 	}
 	
 	public void deletePlaylist()

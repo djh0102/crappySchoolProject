@@ -19,9 +19,11 @@ public class MediaPlayer implements BasicPlayerListener
 {
 
 	private PlayerPanel playerUI;
+	public int idNum = 0;
+	private static int counter = 0;
 	BasicController control;
 	BasicPlayer player;
-	String currentSong;
+	String currentSong = null;
 	//static MediaPlayer mp;
 	boolean playing = false;
     boolean stopped = true; 
@@ -39,6 +41,8 @@ public class MediaPlayer implements BasicPlayerListener
 	}
 	public MediaPlayer(PlayerPanel pp)
 	{
+		idNum = counter;
+		counter = counter + 1;
 		System.out.println("new basic player(PlayerUI)!");
 		player = new BasicPlayer();
 		control = (BasicController) player;
@@ -52,11 +56,13 @@ public class MediaPlayer implements BasicPlayerListener
 		{
 			if(currentSong == null)playerUI.playFirstSong();
 			else
+			{
 				play(currentSong);
-			stopped = false;
-			playing = true;
-			playerUI.setPlayButtonIcon(getClass().getResource("pause.png"));
-			playerUI.setActive(true);
+				stopped = false;
+				playing = true;
+				playerUI.setPlayButtonIcon(getClass().getResource("pause.png"));
+			}
+			//playerUI.setActive(true);
 		}
 		else if (isPlaying())
 		{
@@ -72,6 +78,7 @@ public class MediaPlayer implements BasicPlayerListener
 		else
 		{
 			try {
+				System.out.println("MediaPlayer::line 77");
 				control.resume();
 				playerUI.reservePlayer();
 				playing = true;
@@ -90,10 +97,11 @@ public class MediaPlayer implements BasicPlayerListener
 	
 	public void play(String filename) 
 	{
-		
-		if(filename == null)return;
+		playerUI.setProgress(0);
+		if(filename == null || filename == "")return;
 		playerUI.reservePlayer();
 		currentSong = filename;
+		playerUI.updateSongHistory(currentSong);
 		//System.out.println("Now playing: " + currentSong);
 		playerUI.setCurrentSong(filename);
 		try
@@ -144,6 +152,7 @@ public class MediaPlayer implements BasicPlayerListener
 	}
 	public void pause()
 	{
+		//System.out.println("Someone called pause!!!!");
 		try {
 			control.pause();
 			playerUI.setPlayButtonIcon(getClass().getResource("play.png"));
@@ -156,6 +165,7 @@ public class MediaPlayer implements BasicPlayerListener
 
 	public void stop() 
 	{
+		//System.out.println("Someone called me!!!!");
 		try {
 			control.stop();
 		} catch (BasicPlayerException e) {
@@ -201,20 +211,28 @@ public class MediaPlayer implements BasicPlayerListener
 	@Override
 	public void opened(Object stream, Map properties) 
 	{
+		String name = ((File)stream).getName();
+		System.out.println(properties.get("tagsize"));
+		//properties.get("tagsize");
 		// TODO Auto-generated method stub
 		Mp3File mp3file = null;
 		try {
 			mp3file = new Mp3File(currentSong);
 			bitrate = mp3file.getBitrate();
-			tagsize = (int) (mp3file.getLength() - (mp3file.getLengthInMilliseconds() / 8 * bitrate));
+			//tagsize = (int) (mp3file.getLength() - (mp3file.getLengthInMilliseconds() / 8 * bitrate));
 			
 			if(mp3file.hasId3v2Tag() && playerUI != null) 
 			{
 				playerUI.setCurrentArt(mp3file.getId3v2Tag().getAlbumImage());
-				
+				//System.out.println("datalength == "+mp3file.getId3v2Tag().getDataLength() + ":: and length == " +mp3file.getId3v2Tag().getLength());
+				//System.out.println("tagsize == " + tagsize);
+				tagsize = mp3file.getId3v2Tag().getDataLength();
 			}
 			else
+			{
 				playerUI.setCurrentArt(null);
+				tagsize = 256;
+			}
 		} catch (UnsupportedTagException e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
@@ -230,13 +248,14 @@ public class MediaPlayer implements BasicPlayerListener
 		songInfo = songInfo + ("Title: " + properties.get("title"));
 		songInfo += ("\nAuthor: " + properties.get("author"));
 		
-		/* the casting here is the cause of the inaccuracy */
+		/* the casting here is the cause of the (tiny) inaccuracy */
 		/* need to step back and rethink this part */
 		
 		int lg = (int) (mp3file.getLength() - tagsize);
 		long dur = (Long) properties.get("duration");
 		
-		playerUI.setProgressMax(lg-tagsize);
+		//playerUI.setProgressMax(lg-tagsize);
+		playerUI.setProgressMax(lg);
 		duration = convertMicroSeconds(dur);
 		songInfo += ("\nDuration: " + convertMilliSeconds(((mp3file.getLength()-tagsize)/bitrate*8)));
 		playerUI.setPlayerText(songInfo);
@@ -254,7 +273,17 @@ public class MediaPlayer implements BasicPlayerListener
 	// So it is important for this function to do as little as possible!!!!!!!
 	public void progress(int bytesread, long arg1, byte[] arg2, Map arg3) 
 	{
-		if(!playerUI.isSeeking())playerUI.setProgress(bytesread-tagsize);
+		if(!playerUI.isSeeking())
+		{
+			playerUI.setProgress(bytesread-tagsize);
+			//playerUI.currentTime.setText(convertMicroSeconds(arg1));
+		}
+		/*if(arg1 >= 25000000)
+		{
+			//playerUI.playNextSong();
+			endOfSong();
+			//stateUpdated(new BasicPlayerEvent(BasicPlayerEvent.EOM, bytesread, bytesread, arg1, arg3));
+		}*/
 	}
 
 	@Override
@@ -265,13 +294,16 @@ public class MediaPlayer implements BasicPlayerListener
 	{
 		if(arg0.getCode() == BasicPlayerEvent.EOM )
 		{
-			if(playerUI.getRepeat() == true)
-				play(currentSong);
-			else
-				playerUI.playNextSong();
-				
+			endOfSong();	
 		}
 		
+	}
+	private void endOfSong()
+	{
+		if(playerUI.getRepeat() == true)
+			play(currentSong);
+		else
+			playerUI.playNextSong();
 	}
 	public static String convertMicroSeconds(long lg)
 	{

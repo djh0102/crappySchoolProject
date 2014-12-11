@@ -1,36 +1,55 @@
 import java.awt.BorderLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
+import java.util.ArrayList;
 
+import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JSeparator;
+import javax.swing.KeyStroke;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
 
-public class PlayListWindow extends JFrame implements MouseListener, DatabaseListener
+public class PlayListWindow extends JFrame implements MouseListener, DatabaseListener, ActionListener
 {
-	int windows = 0;
-	int playerNum = 0;
+	//int windows = 0;
+	//int playerNum = 0;
 	PlayerPanel player;
+	boolean dead = false;
 	JFrame newWindow;
 	TablePanel table;
 	PlaylistPanel plPanel;
+	myTunes controller;
 	private JMenuBar menuBar;
     private JMenu menu;
+    private JMenu controls;
     private JMenuItem static_Open;
     private JMenuItem static_Delete;
     private JMenuItem addSong;
     //private JMenuItem exit;
+    private JMenuItem play;
+    private JMenuItem skip_next;
+    private JMenuItem skip_prev;
+    private JMenuItem gotoSong;
+    private JMenu recent;
+    private JCheckBoxMenuItem shuffle;
+    private JCheckBoxMenuItem repeat;
+    private JMenuItem volumeUP;
+    private JMenuItem volumeDOWN;
     private JMenuItem close;
     
-    public PlayListWindow(String str)
+    public PlayListWindow(myTunes mytun,String str)
     {
+    	controller = mytun;
     	newWindow = new JFrame(str);
 		newWindow.setResizable(false);
 		//newWindow.setLayout(null);
@@ -53,11 +72,53 @@ public class PlayListWindow extends JFrame implements MouseListener, DatabaseLis
         menu.add(new JSeparator());
         menu.add(close);
         menuBar.add(menu);
+        controls = new JMenu("Controls");
+        controls.addMouseListener(this);
+        play = new JMenuItem("Play");
+        play.setAccelerator(KeyStroke.getKeyStroke(' '));
+        play.addActionListener(this);
+        skip_next = new JMenuItem("Next");
+        skip_next.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT,ActionEvent.CTRL_MASK));
+        skip_next.addActionListener(this);
+        skip_prev = new JMenuItem("Previous");
+        skip_prev.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_LEFT,ActionEvent.CTRL_MASK));
+        skip_prev.addActionListener(this);
+        recent = new JMenu("Play Recent");
+        gotoSong = new JMenuItem("Go to Current Song");
+        gotoSong.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_L,ActionEvent.CTRL_MASK));
+        gotoSong.addActionListener(this);
+        
+        
+        volumeUP = new JMenuItem("Increase Volume");
+        volumeUP.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_I,ActionEvent.CTRL_MASK));
+        volumeUP.addActionListener(this);
+        volumeDOWN = new JMenuItem("Decrease Volume");
+        volumeDOWN.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_D,ActionEvent.CTRL_MASK));
+        volumeDOWN.addActionListener(this);
+        shuffle = new JCheckBoxMenuItem("Shuffle");
+        shuffle.addActionListener(this);
+        repeat = new JCheckBoxMenuItem("Repeat");
+        repeat.addActionListener(this);
+        
+       // volumeUP = new JMenuItem("Volume Up");
+        //volumeDOWN = new JMenuItem("Volume Down");
+        controls.add(play);
+        controls.add(skip_next);
+        controls.add(skip_prev);
+        controls.add(recent);
+        controls.add(gotoSong);
+        controls.add(new JSeparator());
+        controls.add(volumeUP);
+        controls.add(volumeDOWN);
+        controls.add(new JSeparator());
+        controls.add(shuffle);
+        controls.add(repeat);
+        menuBar.add(controls);
         newWindow.setJMenuBar(menuBar);
 		
         player = new PlayerPanel();
-        playerNum = playerNum+1;
-        if(windows > 2)table.setCurrentTableView("Library");
+        //playerNum = playerNum+1;
+        //if(windows > 2)table.setCurrentTableView("Library");
 		table = new TablePanel(str);
 		MyTunesDB.getDataBaseObject().addDataBaseListener(this);
 		player.setTablePTR(table);
@@ -70,9 +131,16 @@ public class PlayListWindow extends JFrame implements MouseListener, DatabaseLis
 		newWindow.setVisible(true);
 		
 		newWindow.addWindowListener(new WindowListener() {
-	        public void windowClosing(WindowEvent e) 
+	        
+			public void windowClosing(WindowEvent e) 
 	        {
-	            player.Stop();
+	            //player.Stop();
+				dead = true;
+				System.out.print("PlayListWindow::WindowClosing()->");
+	            controller.removePlayer(player);
+	            newWindow = null;
+	            dispose();
+	            deRegister();
 	        }
 
 			@Override
@@ -84,7 +152,11 @@ public class PlayListWindow extends JFrame implements MouseListener, DatabaseLis
 			@Override
 			public void windowClosed(WindowEvent arg0) {
 				// TODO Auto-generated method stub
-				player.Stop();
+				//player.Stop();
+				System.out.print("PlayListWindow::WindowClosed()->");
+	            //controller.removePlayer(player);
+	            //MyTunesDB.getDataBaseObject().removeDataBaseListener(this);
+				deRegister();
 			}
 
 			@Override
@@ -113,10 +185,17 @@ public class PlayListWindow extends JFrame implements MouseListener, DatabaseLis
 
 	    });
 	}
-    
+    public void deRegister()
+    {
+    	MyTunesDB.getDataBaseObject().removeDataBaseListener(this);
+    }
     public PlayerPanel getPlayerPanel()
     {
     	return player;
+    }
+    public TablePanel getTablePanel()
+    {
+    	return table;
     }
 	@Override
 	public void mouseClicked(MouseEvent arg0) {
@@ -142,6 +221,9 @@ public class PlayListWindow extends JFrame implements MouseListener, DatabaseLis
 		
 		if(arg0.getSource() == close)
 		{
+			player.Stop();
+			controller.removePlayer(player);
+			dead=true;
 			newWindow.dispose();
 		}
 		if(arg0.getSource() == static_Open || arg0.getSource() == addSong)
@@ -160,6 +242,28 @@ public class PlayListWindow extends JFrame implements MouseListener, DatabaseLis
 		    		table.addToList(chosenFile);
 		    }
 		}
+		else if(arg0.getSource() == controls)
+		{
+			shuffle.setSelected(player.shuffle.isSelected());
+			repeat.setSelected(player.repeat.isSelected());
+			recent.removeAll();
+			ArrayList<String> songs = controller.getSongHistory();
+			for(int i = 0; i < songs.size(); i++)
+			{
+				final JMenuItem jm = new JMenuItem(songs.get(i));
+				jm.addActionListener(new ActionListener(){
+
+					@Override
+					public void actionPerformed(ActionEvent arg0) 
+					{
+						//System.out.println(jm.getText());
+						player.play(jm.getText());
+					}
+					
+				});
+				recent.add(jm);
+			}
+		}
 	}
 
 	@Override
@@ -175,14 +279,67 @@ public class PlayListWindow extends JFrame implements MouseListener, DatabaseLis
 	}
 
 	@Override
-	public void playlistDeleted(PlaylistEvent arg0) {
+	public void playlistEvent(PlaylistEvent arg0) {
 		// TODO Auto-generated method stub
-		System.out.println("PlaylistWindow::playlistDeleted() == " + arg0.getPlaylistName());
-		if(table.getCurrentTableView().equals(arg0.getPlaylistName()))
+		if(dead)newWindow=null;
+		System.out.println("PlaylistWindow::playlistEvent() == " + arg0.getPlaylistName() + " event type:: " + arg0.getType() + " dead = " +dead);
+		if(table.getCurrentTableView().equals(arg0.getPlaylistName()) && arg0.getType().equals("move") && !dead)
+		{
+			System.out.println("Oh, that's me, moving to baseWindow!!!");
+			//player.shutUP();
+			//dead = true;
+			MyTunesDB.getDataBaseObject().removeDataBaseListener(this);
+			controller.moveToBaseWindow(this);
+			//this.dispose();
+			newWindow.dispose();
+			newWindow = null;
+			this.dispose();
+			
+			//newWindow = null;
+			//this.dispose();
+		}
+		else if(table.getCurrentTableView().equals(arg0.getPlaylistName()) && arg0.getType().equals("delete"))
 		{
 			System.out.println("Oh, that's me, goodbye!!!");
-			player.shutUP();
+			player.Stop();
+			controller.removePlayer(player);
 			newWindow.dispose();
+		}
+		
+	}
+	@Override
+	public void actionPerformed(ActionEvent arg0) {
+		// TODO Auto-generated method stub
+		if(arg0.getSource() == volumeUP)
+		{
+			player.volumeUp();
+			//System.exit(0);
+		}
+		else if(arg0.getSource() == volumeDOWN)
+		{
+			player.volumeDown();
+			//System.exit(0);
+		}
+		else if(arg0.getSource() == skip_next)
+		{
+			//System.out.println("made it here!!!!!!!!!!!!!!!!!!!!!!");
+			player.playNextSong();
+		}
+		else if (arg0.getSource() == play)
+		{
+			player.playFirstSong();
+		}
+		else if (arg0.getSource() == gotoSong)
+		{
+			table.highlightCurrentSong();
+		}
+		else if (arg0.getSource() == shuffle)
+		{
+			player.syncShuffle(shuffle.isSelected());
+		}
+		else if (arg0.getSource() == repeat)
+		{
+			player.syncRepeat(repeat.isSelected());
 		}
 		
 	}

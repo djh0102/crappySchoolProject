@@ -22,7 +22,8 @@ class FileTransferHandler extends TransferHandler
 	DataFlavor myCustomFlavor = new DataFlavor(String[].class, "String Array");
 	
 	/* DataFlavor of an external drop */
-	String external = "java.awt.datatransfer.DataFlavor[mimetype=application/x-java-url;representationclass=java.net.URL]";
+	String external_OSX = "java.awt.datatransfer.DataFlavor[mimetype=application/x-java-url;representationclass=java.net.URL]";
+	String external_WIN = "java.awt.datatransfer.DataFlavor[mimetype=application/x-java-file-list;representationclass=java.util.List]";
 	
 	public FileTransferHandler(TablePanel tp)
 	{
@@ -75,6 +76,7 @@ class FileTransferHandler extends TransferHandler
     public boolean importData(TransferSupport supp) 
     {
     	/* do not continue if the drop is not of a supported flavor */
+    	System.out.println("FileTransferHandler::importData()\n type:: "+ supp.getDataFlavors()[0]);
         if (!canImport(supp)) 
         {
         	System.out.println("Drop type ::" + supp.getDataFlavors()[0] + " not supported");
@@ -97,7 +99,7 @@ class FileTransferHandler extends TransferHandler
             filenames = (List<File>)t.getTransferData(DataFlavor.javaFileListFlavor);
            
             /* if NOT an EXTERNAL Drop */
-            if(!external.equals(d[0].toString()))
+            if(!external_OSX.equals(d[0].toString()) && !external_WIN.equals(d[0].toString()))
             {
             	
             	//Object obj = (Object)t.getTransferData(DataFlavor.stringFlavor);
@@ -120,10 +122,13 @@ class FileTransferHandler extends TransferHandler
             }
     		for(int i = 0; i < filenames.size(); i++)
             {
+    			System.out.println(filenames.get(i).getAbsolutePath());
             	gui.addToList(filenames.get(i).getAbsolutePath());
             }
     	    
         } catch (UnsupportedFlavorException e) {
+        	System.out.println("FileTransferHandler::importData():: Unsupported Data Flavor!");
+        	e.printStackTrace();
             return false;
         } catch (IOException e) {
             return false;

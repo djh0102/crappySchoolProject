@@ -7,6 +7,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 
+import javax.swing.JOptionPane;
 import javax.swing.table.DefaultTableModel;
 
 import com.mpatric.mp3agic.ID3v1;
@@ -48,12 +49,14 @@ public class MyTunesDB
     		Class.forName("org.apache.derby.jdbc.EmbeddedDriver").newInstance();
     		//Get a connection
     		conn = DriverManager.getConnection(dbURL);
-    		//deleteTable("playlist");
+    		//deleteTable("ColumnState");
     		//deleteTable("library");
     		//createTable("library");
     		//createPlaylistTable();
     		//createTablePlaylistNames();
     		//clearTable("PlaylistNames");
+    		//createTableColumnState();
+    		//createTableSongHistory();
     	}
     	catch (Exception except)
     	{
@@ -121,7 +124,58 @@ public class MyTunesDB
     	
     }
     
+    public boolean[] getColumnState()
+    {
+    	ResultSet rs = null;
     
+    	boolean[] tmp = new boolean[6];
+    	int[] values = new int[6];
+    	try {
+			stmt = conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE);
+			rs = stmt.executeQuery("select * from ColumnState");
+			rs.first();
+			values[0] = rs.getInt(1);
+			values[1] = rs.getInt(2);
+			values[2] = rs.getInt(3);
+			values[3] = rs.getInt(4);
+			values[4] = rs.getInt(5);
+			values[5] = rs.getInt(6);
+			for(int i =0; i < 6; i++)
+			{
+				
+				if(values[i] == 1)tmp[i] = true;
+				else
+					tmp[i] = false;
+				
+				//System.out.print(tmp[i] + ",");
+			}
+			
+			
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    	//System.out.println("::::::::::::: here is i " + i);
+    	return tmp;
+    }
+    public void saveColumnState(boolean[] columnState)
+    {
+    	int[] tmp = new int[6];
+    	for(int i =0; i < 6; i++)
+    	{
+    		if(columnState[i])tmp[i] = 1;
+    		else
+    			tmp[i] = 0;
+    	}
+    	try {
+			stmt = conn.createStatement();
+			stmt.execute("Delete from ColumnState");
+			stmt.execute("INSERT INTO ColumnState VALUES("+ tmp[0] +"," + tmp[1] + "," + tmp[2] + ","+ tmp[3] + "," + tmp[4] + "," + tmp[5] + ")");
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    }
     // this function is called to get the index of a song
     // if song is in list, it's index is returned
     // if song not in list, -1 is returned
@@ -159,6 +213,16 @@ public class MyTunesDB
     		//System.out.println("\n deleteTable() Failed!");
     		return;
     	}
+    }
+    public void createTableSongHistory()
+    {
+    	try {
+			stmt = conn.createStatement();
+			stmt.execute("CREATE TABLE SongHistory(song varchar(256))");
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
     }
     // this function deletes an individual tuple from the database
     public void deleteEntry(String tableName,String fileName)
@@ -204,6 +268,17 @@ public class MyTunesDB
     	try {
 			stmt = conn.createStatement();
 			stmt.execute("CREATE TABLE PlaylistNames (name varchar(64) PRIMARY KEY)");
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    }
+    public void createTableColumnState()
+    {
+    	try {
+			stmt = conn.createStatement();
+			stmt.execute("CREATE TABLE ColumnState(Artist smallint,Album smallint,Genre smallint,Time smallint,RYear smallint,Comment smallint)");
+			stmt.execute("INSERT INTO ColumnState VALUES(1,1,1,1,1,1)");
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -291,7 +366,8 @@ public class MyTunesDB
 			stmt.execute("insert into PlaylistNames values('" + str + "')");
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
-			e.printStackTrace();
+			//e.printStackTrace();
+			JOptionPane.showMessageDialog(null, "Playlist: " + str + " already exists!");
 		}
     }
     public void deletePlaylist(String str)
@@ -305,7 +381,7 @@ public class MyTunesDB
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-    	firePlaylistBaseEvent(str);
+    	firePlaylistBaseEvent(str, "delete");
     }
     public void insertIntoPlaylist(String fileName,String playlistName)
     {
@@ -396,7 +472,7 @@ public class MyTunesDB
 			//e.printStackTrace();
 			return true;
 		}
-    	
+    	fireDataBaseEvent(fileName,"insert");
         return true;
     }
     // this function checks to see if a table is empty
@@ -437,6 +513,7 @@ public class MyTunesDB
     		}
     	}
     	//System.out.println("output = " + output);
+    	fireDataBaseEvent(fileName,"insert");
     	return output;
     }
    
@@ -444,7 +521,39 @@ public class MyTunesDB
     {
     	return columnNames;
     }
-    private void fireDataBaseEvent(String filename, String op)
+    public void saveSongHistory(ArrayList<String> songs)
+    {
+    	try {
+			stmt=conn.createStatement();
+			stmt.execute("Delete from SongHistory");
+			for (int i = 0; i < songs.size();i++)
+			{
+				stmt.execute("INSERT INTO SongHistory VALUES('" + makeSQLCompatible(songs.get(i)) + "')");
+			}
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    }
+    public ArrayList<String> getSongHistory()
+    {
+    	ArrayList<String> songHistory = new ArrayList<String>();
+    	int rows = 0;
+    	ResultSet rs = null;
+    	try {
+			stmt=conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE);
+			rs = stmt.executeQuery("select * from SongHistory");
+			while(rs.next())
+			{
+				songHistory.add(rs.getString(1));
+			}
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    	return songHistory;
+    }
+    public void fireDataBaseEvent(String filename, String op)
     {
     	if (listeners.size() == 0)return;
     	
@@ -453,13 +562,14 @@ public class MyTunesDB
     		listeners.get(i).dataBaseDataChanged(new DataBaseEvent(this,filename,op));
     	}
     }
-    private void firePlaylistBaseEvent(String playlistName)
+    
+    public void firePlaylistBaseEvent(String playlistName, String type)
     {
     	if (listeners.size() == 0)return;
     	
     	for(int i = 0; i < listeners.size(); i++)
     	{
-    		listeners.get(i).playlistDeleted(new PlaylistEvent(this,playlistName));
+    		listeners.get(i).playlistEvent(new PlaylistEvent(this,playlistName, type));
     	}
     }
     // this is how we link this database obj to the jTable in the gui.
@@ -467,6 +577,10 @@ public class MyTunesDB
     public void addDataBaseListener(DatabaseListener listener)
     {
     	listeners.add(listener);
+    }
+    public void removeDataBaseListener(DatabaseListener listener)
+    {
+    	listeners.remove(listener);
     }
     public void setUI(TablePanel tp)
     {

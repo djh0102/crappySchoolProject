@@ -9,15 +9,22 @@ import java.awt.dnd.DragGestureEvent;
 import java.awt.dnd.DragGestureListener;
 import java.awt.dnd.DragSource;
 import java.awt.dnd.DropTargetDropEvent;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.Queue;
+import java.util.Random;
 
 import javax.swing.BorderFactory;
 import javax.swing.DropMode;
 import javax.swing.ImageIcon;
+import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JFileChooser;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
@@ -34,9 +41,12 @@ import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellRenderer;
 
 
-public class TablePanel extends JPanel implements MouseListener, DatabaseListener
+public class TablePanel extends JPanel implements MouseListener, DatabaseListener, ActionListener
 {
-	//static int counter = 0;
+	int shuffleIndex = -1;
+	int[] shuffleList;
+	boolean shuffle = false;
+	boolean importing = false; 
 	JTable table;
 	DefaultTableModel model;
 	JScrollPane scroller;
@@ -46,6 +56,13 @@ public class TablePanel extends JPanel implements MouseListener, DatabaseListene
 	MediaPlayer mplayer;
 	String currentTableView;
 	JPopupMenu popup;
+	JPopupMenu columnPopUp;
+	JCheckBoxMenuItem artist;
+	JCheckBoxMenuItem album;
+	JCheckBoxMenuItem genre;
+	JCheckBoxMenuItem time;
+	JCheckBoxMenuItem year;
+	JCheckBoxMenuItem comment;
 	JMenuItem popOpen;
 	JMenuItem popDelete;
 	JMenu addToPlaylist;
@@ -53,6 +70,7 @@ public class TablePanel extends JPanel implements MouseListener, DatabaseListene
 	String orderby = "Title";
 	boolean order = false;
 	int lastClickedColumn;
+	boolean[] columnState;
 	
 	public TablePanel(String str)
 	{
@@ -66,6 +84,7 @@ public class TablePanel extends JPanel implements MouseListener, DatabaseListene
 		
 		database = MyTunesDB.getDataBaseObject();
 		database.addDataBaseListener(this);
+		columnState = database.getColumnState();
 		
 		model = new DefaultTableModel(database.getDisplaySet("Library",orderby,order), database.getColumnNames()) 
     	{
@@ -104,11 +123,23 @@ public class TablePanel extends JPanel implements MouseListener, DatabaseListene
         };
         table.getTableHeader().addMouseListener(new MouseAdapter() {
   	      @Override
-  	      public void mouseClicked(MouseEvent mouseEvent) {
-  	        int index = table.convertColumnIndexToModel(table.columnAtPoint(mouseEvent.getPoint()));
-  	        if (index >= 0) {
-  	          System.out.println("Clicked on column " + index);
-  	          setorderBy(index);
+  	      public void mouseClicked(MouseEvent mouseEvent) 
+  	      {
+  	    	  if(mouseEvent.isMetaDown())
+  	    	  {
+  	    		//int index = table.convertColumnIndexToModel(table.columnAtPoint(mouseEvent.getPoint()));
+  	    		  //System.out.println("Right click detected on table header on column " + index);
+  	    		  //show column view pop up
+  	    		  columnPopUp.show(mouseEvent.getComponent(), mouseEvent.getX(), mouseEvent.getY());
+  	    	  }
+  	    	  else
+  	    	  {
+  	    		  int index = table.convertColumnIndexToModel(table.columnAtPoint(mouseEvent.getPoint()));
+  	    		  if (index >= 0) 
+  	    		  {
+  	    			  System.out.println("Clicked on column " + index);
+  	    			  setorderBy(index);
+  	    		  }
   	        }
   	      };
   	    });
@@ -141,18 +172,48 @@ public class TablePanel extends JPanel implements MouseListener, DatabaseListene
         scroller.setViewportView(table);
         table.setFillsViewportHeight(true);
         updateUI(currentTableView);
-        this.add(scroller);	
+        this.add(scroller);
+        
+        artist = new JCheckBoxMenuItem("Artist");
+        artist.setSelected(columnState[0]);
+        artist.addActionListener(this);
+        album = new JCheckBoxMenuItem("Album");
+        album.setSelected(columnState[1]);
+        album.addActionListener(this);
+        genre = new JCheckBoxMenuItem("Genre");
+        genre.setSelected(columnState[2]);
+        genre.addActionListener(this);
+        time = new JCheckBoxMenuItem("Time");
+        time.setSelected(columnState[3]);
+        time.addActionListener(this);
+        year = new JCheckBoxMenuItem("Year");
+        year.setSelected(columnState[4]);
+        year.addActionListener(this);
+        comment = new JCheckBoxMenuItem("Comment");
+        comment.setSelected(columnState[5]);
+        comment.addActionListener(this);
+        
+        columnPopUp = new JPopupMenu();
+        columnPopUp.add(artist);
+        columnPopUp.add(album);
+        columnPopUp.add(genre);
+        columnPopUp.add(time);
+        columnPopUp.add(year);
+        columnPopUp.add(comment);
         
 	}
-	public JTable getTableObj()
-	{
-		return table;
-	}
+	//public JTable getTableObj()
+	//{
+	//	return table;
+	//}
 	public void setMediaPlayer(MediaPlayer mp)
     {
     	mplayer = mp;
     }
-	
+	public MediaPlayer getMediaPlayer()
+	{
+		return mplayer;
+	}
 	public void scrollToSelected()
 	{
 		Rectangle cellRect = table.getCellRect(table.getSelectedRow(), 0, false);
@@ -163,11 +224,13 @@ public class TablePanel extends JPanel implements MouseListener, DatabaseListene
 	}
 	public void setActive()
 	{
+		active = true;
 		table.setSelectionBackground(Color.GREEN);
 		table.setSelectionForeground(Color.BLACK);
 	}
 	public void setInactive()
 	{
+		active = false;
 		table.setSelectionBackground(Color.RED);
 		table.setSelectionForeground(Color.WHITE);
 	}
@@ -179,18 +242,21 @@ public class TablePanel extends JPanel implements MouseListener, DatabaseListene
     		//success = database.insertEntry("Library", fileName);
     		if(!currentTableView.equals("Library"))database.insertIntoPlaylist(fileName, currentTableView);
     		else
-    			database.insertEntry("library", fileName);
+    			database.insertEntry("Library", fileName);
     		
     		currentIndex = database.getIndexOf(fileName);
     		maxIndex = table.getRowCount();
     	}
     	
-    	//updateUI(currentTableView); // handled by 
+    	
     	return success;
 	}
 	
-	public void deleteRows(int[] rows)
+	public void deleteRows()
     {
+		if(table.getSelectedRow() == -1)return;
+		int[] rows = table.getSelectedRows();
+		
     	for(int i = rows.length-1; i >= 0; i--)
     	{
     		String fileName = (String)((String)model.getValueAt(rows[i], model.getColumnCount()-1));
@@ -216,7 +282,8 @@ public class TablePanel extends JPanel implements MouseListener, DatabaseListene
 	
 	public String getCurrentSong()
 	{
-		if(table.getSelectedRow() == -1)
+		if(model.getRowCount() == 0)return null;
+		else if(table.getSelectedRow() == -1)
 		{
 			table.setRowSelectionInterval(0, 0);
 			currentIndex = 0;
@@ -232,27 +299,58 @@ public class TablePanel extends JPanel implements MouseListener, DatabaseListene
 	
 	public String getNextSong()
 	{
-		currentIndex = (currentIndex+1)%table.getRowCount();
+		if(model.getRowCount() == 0)return null;
+		
+		else if(shuffle)
+		{
+			currentIndex = nextShuffleIndex();
+		}
+		else
+		{
+			currentIndex = (currentIndex+1)%table.getRowCount();
+		}
 		table.setRowSelectionInterval(currentIndex, currentIndex);
 		scrollToSelected();
 		return (String)model.getValueAt(currentIndex, model.getColumnCount()-1);
-		
 	}
 	
 	public String getPreviousSong()
 	{
-		maxIndex = table.getRowCount();
-		System.out.println("maxIndex = " + maxIndex + " and currentIndex == " + currentIndex);
-	    currentIndex = (currentIndex == 0) ? maxIndex-1:currentIndex-1;
-		table.setRowSelectionInterval(currentIndex, currentIndex);
-		scrollToSelected();
-		return (String)model.getValueAt(currentIndex, model.getColumnCount()-1);
+		//maxIndex = table.getRowCount();
+		//System.out.println("maxIndex = " + maxIndex + " and currentIndex == " + currentIndex);
+		if(model.getRowCount() == 0)return null;
+		
+		else if(shuffle)
+		{
+			currentIndex = previousShuffleIndex();
+			table.setRowSelectionInterval(currentIndex, currentIndex);
+			scrollToSelected();
+			return (String)model.getValueAt(currentIndex, model.getColumnCount()-1);
+		}
+		else
+		{
+			currentIndex = (currentIndex == 0) ? maxIndex-1:currentIndex-1;
+			table.setRowSelectionInterval(currentIndex, currentIndex);
+			scrollToSelected();
+			return (String)model.getValueAt(currentIndex, model.getColumnCount()-1);
+			
+		}
 	}
 	
 	public void setCurrentTableView(String str)
 	{
+		database.firePlaylistBaseEvent(str,"move");
 		currentTableView = str;
-		this.setBorder(BorderFactory.createTitledBorder(currentTableView));
+		//this.setBorder(BorderFactory.createTitledBorder(currentTableView));
+		//this.setSize(900,600);
+		
+		columnState = database.getColumnState();
+		artist.setSelected(columnState[0]);
+		album.setSelected(columnState[1]);
+		genre.setSelected(columnState[2]);
+		time.setSelected(columnState[3]);
+		year.setSelected(columnState[4]);
+		comment.setSelected(columnState[5]);
 		updateUI(currentTableView);
 		int tmp = -1;
 		if(mplayer!=null && mplayer.getCurrentSong() != null)tmp = getIndexOf(mplayer.getCurrentSong());
@@ -314,14 +412,17 @@ public class TablePanel extends JPanel implements MouseListener, DatabaseListene
 		return currentTableView;
 	}
 	
-	
+	public boolean isActive()
+	{
+		return active;
+	}
 	
 	private void buildPopUp(MouseEvent arg0)
 	{
 		Object[] playlistNames;
 		JMenuItem submenuItem;
 		popup = new JPopupMenu();
-        popOpen = new JMenuItem("Open");
+        popOpen = new JMenuItem("Add");
         popOpen.addMouseListener(this);
         popDelete = new JMenuItem("Delete");
         popDelete.addMouseListener(this);
@@ -375,7 +476,7 @@ public class TablePanel extends JPanel implements MouseListener, DatabaseListene
 		
 		else if(arg0.getSource() == popDelete)
 		{
-			deleteRows(table.getSelectedRows());
+			deleteRows();
 		}
 		
 		else if(arg0.getSource() == popOpen)
@@ -474,38 +575,104 @@ public class TablePanel extends JPanel implements MouseListener, DatabaseListene
     	System.out.println(this.getClass().toString()+":: updateUI("+tableName+"):: currentIndex = " + currentIndex + ", maxIndex = "+ maxIndex);
     	/* highlight the currentIndex */
     	//if(!(maxIndex==0))table.setRowSelectionInterval(currentIndex, currentIndex);
+    	
+    	for(int i = 6; i >1; i--)
+    	{
+    		if(!columnState[i-1])table.removeColumn(table.getColumn(table.getColumnName(i)));
+    	}
+    	if(!importing)buildShuffleList();
+    	importing = false;
     }
-	/*public static void main(String[] args) {
-		// TODO Auto-generated method stub
-		try {
-        	
-            for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) 
-            {
-            	System.out.println(info.getName() + ": " + info.getClassName());
-                if ("Nimbus".equals(info.getName())) 
-                {
-                    javax.swing.UIManager.setLookAndFeel(info.getClassName());
-                  
-                    //break;
-                }
-                
-            }
-        } catch (ClassNotFoundException ex) {
-            java.util.logging.Logger.getLogger(PlayerUI.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (InstantiationException ex) {
-            java.util.logging.Logger.getLogger(PlayerUI.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (IllegalAccessException ex) {
-            java.util.logging.Logger.getLogger(PlayerUI.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (javax.swing.UnsupportedLookAndFeelException ex) {
-            java.util.logging.Logger.getLogger(PlayerUI.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        }
-		TablePanel tp = new TablePanel();
-		JFrame jf = new JFrame();
-		jf.add(tp);
-		jf.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		jf.setSize(tp.getSize());
-		jf.setVisible(true);
-	}*/
+	public void setShuffle(boolean x)
+	{
+		shuffle = x;
+		if(shuffle)buildShuffleList();
+	}
+	public void buildShuffleList()
+	{
+		System.out.println("building new shuffle list!");
+		Queue<Integer> shuffleListTMP = new LinkedList<Integer>();
+		if(model.getRowCount() == 0)
+		{
+			System.out.println("shuffleList is empty");
+			return;
+		}
+		int i = 0;
+		int tmp = -1;
+		Random generator = new Random();
+		while (i < maxIndex)
+		{
+			tmp = generator.nextInt(maxIndex);
+			if(!shuffleListTMP.contains(tmp))
+			{
+				i++;
+				shuffleListTMP.add(tmp);
+			}
+		}
+		//printShuffleList();
+		
+		if(currentIndex == shuffleListTMP.peek())
+		{
+			tmp = shuffleListTMP.poll();
+			shuffleListTMP.add(tmp);
+			//printShuffleList();
+		}
+		
+		Object[] tmpobj = shuffleListTMP.toArray();
+		shuffleList = new int[tmpobj.length];
+		
+		for(int j = 0; j < tmpobj.length;j++)
+		{
+			shuffleList[j] = (Integer)tmpobj[j];
+		}
+		
+	}
+	/* this is for getting shuffle state information */
+	public boolean getShuffle()
+	{
+		return shuffle;
+	}
+	/* this is for getting shuffle state information */
+	public int[] getShuffleList()
+	{
+		return shuffleList;
+	}
+	/* this is for getting shuffle state information */
+	public int getShuffleIndex()
+	{
+		return shuffleIndex;
+	}
+	/* this is for importing shuffle state information */
+	public void importShuffleState(int[] list, int index)
+	{
+		//columnState = database.getColumnState();
+		importing = true;
+		shuffle = true;
+		shuffleList = list;
+		shuffleIndex = index;
+	}
+
+	public int nextShuffleIndex()
+	{
+		shuffleIndex = (shuffleIndex+1) % maxIndex;
+		return shuffleList[shuffleIndex];
+	}
+	public int previousShuffleIndex()
+	{
+		shuffleIndex = (shuffleIndex == 0) ? maxIndex-1:shuffleIndex-1;
+		return shuffleList[shuffleIndex];
+	}
+	public void highlightCurrentSong()
+	{
+		String tmp = mplayer.getCurrentSong();
+		int x = getIndexOf(tmp);
+		if(x != -1)
+		{
+			table.setRowSelectionInterval(x, x);
+			scrollToSelected();
+		}
+	}
+	
 	@Override
 	public void dataBaseDataChanged(DataBaseEvent arg0) {
 		
@@ -529,8 +696,22 @@ public class TablePanel extends JPanel implements MouseListener, DatabaseListene
 		
 	}
 	@Override
-	public void playlistDeleted(PlaylistEvent arg0) {
+	public void playlistEvent(PlaylistEvent arg0) {
 		// TODO Auto-generated method stub
+		
+	}
+	@Override
+	public void actionPerformed(ActionEvent arg0) 
+	{
+		System.out.println("made it here!");
+		columnState[0] = artist.isSelected();
+		columnState[1] = album.isSelected();
+		columnState[2] = genre.isSelected();
+		columnState[3] = time.isSelected();
+		columnState[4] = year.isSelected();
+		columnState[5] = comment.isSelected();
+		updateUI(currentTableView);
+		database.saveColumnState(columnState);
 		
 	}
 
